@@ -3,426 +3,338 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>SWOLLMETER</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <title>Swollmeter</title>
   <style>
     :root {
-      --neon: #00ff41;
-      --neon-dim: #00cc33;
-      --bg: #060606;
-      --surface: #0d0d0d;
-      --surface2: #141414;
-      --border: #1c1c1c;
-      --text-dim: #3a3a3a;
+      --bg:    #000000;
+      --s1:    #1C1C1E;
+      --s2:    #2C2C2E;
+      --s3:    #3A3A3C;
+      --label: #FFFFFF;
+      --l2:    rgba(235,235,245,0.6);
+      --l3:    rgba(235,235,245,0.3);
+      --sep:   rgba(84,84,88,0.65);
+      --blue:  #007AFF;
+      --green: #34C759;
+      --red:   #FF3B30;
     }
 
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
 
     body {
       background: var(--bg);
-      color: var(--neon);
-      font-family: 'Share Tech Mono', monospace;
+      color: var(--label);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
       min-height: 100vh;
       overscroll-behavior: none;
-      padding-bottom: calc(72px + env(safe-area-inset-bottom));
+      padding-bottom: calc(80px + env(safe-area-inset-bottom));
+      -webkit-font-smoothing: antialiased;
     }
-
-    .font-orb { font-family: 'Orbitron', monospace; }
-
-    /* ── Scan line ── */
-    .scan-line {
-      position: fixed; top: -2px; left: 0; right: 0; height: 1px;
-      background: linear-gradient(90deg, transparent 0%, var(--neon) 50%, transparent 100%);
-      animation: scan 4s linear infinite; opacity: 0.15;
-      pointer-events: none; z-index: 9999;
-    }
-    @keyframes scan { from { top: -2px; } to { top: 100vh; } }
 
     /* ── Flash overlay ── */
-    #flashOverlay {
-      position: fixed; inset: 0; pointer-events: none; z-index: 9998; opacity: 0;
-    }
-    #flashOverlay.active { animation: screenFlash 0.45s ease-out forwards; }
-    @keyframes screenFlash {
-      0%   { opacity: 1; }
-      100% { opacity: 0; }
-    }
+    #flashOverlay { position: fixed; inset: 0; pointer-events: none; z-index: 9998; opacity: 0; }
+    #flashOverlay.active { animation: screenFlash 0.4s ease-out forwards; }
+    @keyframes screenFlash { 0% { opacity: 1; } 100% { opacity: 0; } }
 
-    .neon-text {
-      color: var(--neon);
-      text-shadow: 0 0 8px var(--neon), 0 0 20px rgba(0,255,65,0.4);
+    /* ── Section headers (iOS grouped list style) ── */
+    .section-label {
+      font-size: 13px; font-weight: 600; color: var(--l3);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      margin-bottom: 8px; padding: 0 4px;
     }
 
     /* ── Cards ── */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      transition: border-color 0.25s, box-shadow 0.25s;
-    }
-    .card:hover { border-color: rgba(0,255,65,0.18); }
-    .card.logged { animation: cardGlow 0.7s ease-out forwards; }
-    @keyframes cardGlow {
-      0%   { border-color: var(--neon); box-shadow: 0 0 0 0 rgba(0,255,65,0.7); transform: scale(1); }
-      35%  { border-color: var(--neon); box-shadow: 0 0 24px 6px rgba(0,255,65,0.3); transform: scale(1.012); }
-      100% { border-color: var(--border); box-shadow: none; transform: scale(1); }
+    .card { background: var(--s2); border-radius: 16px; }
+    .card.logged { animation: cardPop 0.55s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+    @keyframes cardPop {
+      0%   { transform: scale(1); box-shadow: none; }
+      45%  { transform: scale(1.025); box-shadow: 0 6px 28px rgba(0,122,255,0.28); }
+      100% { transform: scale(1); box-shadow: none; }
     }
 
     /* ── Inputs ── */
     input[type="number"] {
-      background: #0a0a0a; color: var(--neon);
-      border: 1px solid #222; outline: none;
-      font-family: 'Share Tech Mono', monospace;
-      -moz-appearance: textfield; width: 100%; text-align: center;
+      background: var(--s3); color: var(--label);
+      border: none; outline: none;
+      font-family: inherit; font-size: 17px; font-weight: 500;
+      -moz-appearance: textfield; width: 100%; text-align: center; height: 44px;
     }
     input[type="number"]::-webkit-inner-spin-button,
-    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-    input[type="number"]:focus {
-      border-color: var(--neon); box-shadow: 0 0 0 2px rgba(0,255,65,0.15);
-    }
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input[type="number"]:focus { box-shadow: inset 0 0 0 2px var(--blue); }
 
     /* ── Stepper buttons ── */
     .step-btn {
-      background: var(--surface2); color: #666; border: 1px solid #222;
+      background: var(--s3); color: var(--blue); border: none;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: all 0.12s; user-select: none; touch-action: manipulation;
-      font-size: 20px; min-width: 40px; height: 40px;
+      user-select: none; touch-action: manipulation;
+      font-size: 24px; font-weight: 300; min-width: 44px; height: 44px;
+      transition: background 0.1s;
     }
-    .step-btn:active { background: rgba(0,255,65,0.12); color: var(--neon); border-color: var(--neon); }
+    .step-btn:active { background: #4A4A4C; }
 
-    /* ── Main log button ── */
+    /* ── Primary button ── */
     #mainLogBtn {
-      background: transparent; color: var(--neon);
-      border: 1px solid var(--neon);
-      font-family: 'Orbitron', monospace; font-weight: 700;
-      letter-spacing: 0.15em; cursor: pointer; transition: all 0.2s;
-      border-radius: 8px; position: relative; overflow: hidden;
-      touch-action: manipulation;
+      width: 100%; padding: 16px;
+      background: var(--blue); color: #fff; border: none;
+      font-family: inherit; font-size: 17px; font-weight: 600;
+      border-radius: 14px; cursor: pointer;
+      letter-spacing: -0.2px; touch-action: manipulation;
+      transition: background 0.15s, transform 0.1s;
     }
-    #mainLogBtn::before {
-      content: ''; position: absolute; inset: 0;
-      background: linear-gradient(135deg, transparent 40%, rgba(0,255,65,0.04) 100%);
-    }
-    #mainLogBtn:hover { background: rgba(0,255,65,0.07); box-shadow: 0 0 20px rgba(0,255,65,0.35); }
-    #mainLogBtn:active { transform: scale(0.98); }
-    #mainLogBtn.firing { animation: btnFire 1.4s ease-out forwards; }
-    @keyframes btnFire {
-      0%   { background: rgba(0,255,65,0.25); box-shadow: 0 0 30px rgba(0,255,65,0.6); }
-      60%  { background: rgba(0,255,65,0.08); box-shadow: 0 0 10px rgba(0,255,65,0.2); }
-      100% { background: transparent; box-shadow: none; }
+    #mainLogBtn:active { background: #0062CC; transform: scale(0.98); }
+    #mainLogBtn.success { animation: btnSuccess 1.6s ease-out forwards; }
+    @keyframes btnSuccess {
+      0%   { background: var(--green); }
+      70%  { background: var(--green); }
+      100% { background: var(--blue); }
     }
 
     /* ── Heatmap ── */
-    .hm-day {
-      flex: 1; aspect-ratio: 1; border: 1px solid var(--border); border-radius: 5px;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 2px; transition: all 0.3s; max-width: 44px;
+    .hm-day { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; }
+    .hm-label { font-size: 11px; font-weight: 500; color: var(--l3); }
+    .hm-dot {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--s2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; color: transparent;
+      transition: all 0.3s;
     }
-    .hm-day .hm-label { font-size: 8px; color: var(--text-dim); letter-spacing: 0.05em; }
-    .hm-day .hm-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
-    .hm-day.active { border-color: var(--neon); background: rgba(0,255,65,0.08); box-shadow: 0 0 8px rgba(0,255,65,0.25); }
-    .hm-day.active .hm-label { color: var(--neon-dim); }
-    .hm-day.active .hm-dot { background: var(--neon); box-shadow: 0 0 5px var(--neon); }
-    .hm-day.today:not(.active) { border-color: #2a2a2a; }
-    .hm-day.today .hm-label { color: #555; }
+    .hm-day.active   .hm-label { color: var(--blue); }
+    .hm-day.active   .hm-dot   { background: var(--blue); color: #fff; }
+    .hm-day.today    .hm-label { color: var(--blue); font-weight: 700; }
+    .hm-day.today:not(.active) .hm-dot { background: var(--s3); box-shadow: inset 0 0 0 2px var(--blue); }
 
-    .neon-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(0,255,65,0.25), transparent); }
-
-    /* ── Edit button ── */
-    .edit-btn {
-      font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 0.1em;
-      color: #444; background: transparent; border: 1px solid #2a2a2a;
-      padding: 3px 10px; border-radius: 3px; cursor: pointer; transition: all 0.15s;
-      touch-action: manipulation;
+    /* ── Exercise icon tile ── */
+    .ex-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
     }
-    .edit-btn:hover, .edit-btn:active { color: var(--neon); border-color: var(--neon); }
 
-    /* ── Delete button (inline on cards) ── */
-    .del-btn {
-      font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 0.1em;
-      color: #444; background: transparent; border: 1px solid #2a2a2a;
-      padding: 3px 10px; border-radius: 3px; cursor: pointer; transition: all 0.15s;
-      touch-action: manipulation;
+    /* ── Inline action buttons ── */
+    .btn-edit {
+      font-family: inherit; font-size: 13px; font-weight: 500;
+      color: var(--blue); background: rgba(0,122,255,0.12); border: none;
+      padding: 5px 14px; border-radius: 8px; cursor: pointer;
+      transition: background 0.12s; touch-action: manipulation;
     }
-    .del-btn:hover { color: #ff4444; border-color: #ff4444; }
-    .del-btn.confirm { color: #ff4444; border-color: #ff4444; background: rgba(255,68,68,0.08); }
+    .btn-edit:active { background: rgba(0,122,255,0.22); }
+
+    .btn-del {
+      font-family: inherit; font-size: 13px; font-weight: 500;
+      color: var(--red); background: rgba(255,59,48,0.1); border: none;
+      padding: 5px 14px; border-radius: 8px; cursor: pointer;
+      transition: all 0.12s; touch-action: manipulation;
+    }
+    .btn-del:active { background: rgba(255,59,48,0.2); }
+    .btn-del.confirm { background: var(--red); color: #fff; }
 
     /* ── History card ── */
-    .history-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+    .history-card { background: var(--s2); border-radius: 14px; padding: 14px; }
 
-    /* ── Count badge ── */
-    .count-badge {
-      font-size: 8px; background: var(--neon); color: #000;
-      border-radius: 3px; padding: 1px 4px;
-      font-family: 'Orbitron', monospace; font-weight: 900; line-height: 1.4;
-    }
-
-    /* ════ BOTTOM NAV ════ */
+    /* ── BOTTOM NAV ── */
     #bottomNav {
       position: fixed; bottom: 0; left: 0; right: 0;
-      background: #080808;
-      border-top: 1px solid #161616;
+      background: rgba(20,20,22,0.92);
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border-top: 0.5px solid var(--sep);
       display: flex;
       padding-bottom: env(safe-area-inset-bottom);
       z-index: 500;
     }
     .nav-tab {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 3px; padding: 10px 0;
-      color: #333; background: transparent; border: none;
-      font-family: 'Orbitron', monospace; font-size: 8px;
-      letter-spacing: 0.18em; cursor: pointer; transition: color 0.2s;
-      touch-action: manipulation;
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 3px; padding: 10px 0;
+      color: var(--l3); background: transparent; border: none;
+      font-family: inherit; font-size: 10px; font-weight: 500;
+      cursor: pointer; transition: color 0.18s; touch-action: manipulation;
     }
-    .nav-tab svg { width: 18px; height: 18px; transition: filter 0.2s; }
-    .nav-tab.active { color: var(--neon); }
-    .nav-tab.active svg { filter: drop-shadow(0 0 4px var(--neon)); }
+    .nav-tab svg { width: 25px; height: 25px; }
+    .nav-tab.active { color: var(--blue); }
 
-    /* ════ CALENDAR VIEW ════ */
-    #viewCalendar { display: none; }
-    #viewCalendar.active { display: block; }
-
-    .cal-month-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 4px; margin-bottom: 16px;
+    /* ── CALENDAR ── */
+    .cal-dow {
+      display: grid; grid-template-columns: repeat(7,1fr);
+      margin-bottom: 4px;
     }
-    .cal-nav-btn {
-      background: transparent; color: #555; border: 1px solid #1c1c1c;
-      width: 36px; height: 36px; border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; font-size: 16px; transition: all 0.15s;
-      touch-action: manipulation;
+    .cal-dow span {
+      text-align: center; font-size: 12px; font-weight: 600;
+      color: var(--l3); padding: 4px 0;
     }
-    .cal-nav-btn:hover, .cal-nav-btn:active { color: var(--neon); border-color: var(--neon); }
-
-    .cal-dow-header {
-      display: grid; grid-template-columns: repeat(7, 1fr);
-      gap: 3px; margin-bottom: 3px;
-    }
-    .cal-dow-header span {
-      text-align: center; font-size: 9px; letter-spacing: 0.1em;
-      color: var(--text-dim); padding: 4px 0;
-    }
-
-    #calGrid {
-      display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
-    }
-
+    #calGrid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
     .cal-cell {
-      aspect-ratio: 1; border-radius: 6px; border: 1px solid transparent;
+      aspect-ratio: 1; border-radius: 50%;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      cursor: pointer; transition: all 0.15s; position: relative;
-      touch-action: manipulation; user-select: none;
+      cursor: pointer; transition: all 0.14s;
+      touch-action: manipulation; user-select: none; position: relative;
     }
-    .cal-cell.empty { cursor: default; pointer-events: none; }
-    .cal-cell .cn { font-size: 13px; color: #444; line-height: 1; }
-    .cal-cell .cd { width: 5px; height: 5px; border-radius: 50%; margin-top: 3px; background: transparent; }
+    .cal-cell.empty  { cursor: default; pointer-events: none; }
+    .cal-cell .cn    { font-size: 15px; font-weight: 400; color: var(--l2); }
+    .cal-cell .cd    { width: 4px; height: 4px; border-radius: 50%; background: transparent; margin-top: 2px; }
+    .cal-cell.has-session .cd { background: var(--blue); }
+    .cal-cell.is-today:not(.is-selected) { background: rgba(0,122,255,0.14); }
+    .cal-cell.is-today .cn   { color: var(--blue); font-weight: 700; }
+    .cal-cell.is-selected    { background: var(--blue); }
+    .cal-cell.is-selected .cn { color: #fff; font-weight: 700; }
+    .cal-cell.is-selected .cd { background: rgba(255,255,255,0.55); }
+    .cal-cell:not(.empty):not(.is-selected):active { background: var(--s2); }
 
-    .cal-cell.has-session { background: rgba(0,255,65,0.05); }
-    .cal-cell.has-session .cn { color: #888; }
-    .cal-cell.has-session .cd { background: var(--neon-dim); box-shadow: 0 0 4px var(--neon-dim); }
+    #dayPanel { animation: fadeUp 0.2s ease-out; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
 
-    .cal-cell.is-today:not(.is-selected) { border-color: rgba(0,255,65,0.25); }
-    .cal-cell.is-today .cn { color: var(--neon); }
-
-    .cal-cell.is-selected {
-      background: rgba(0,255,65,0.12); border-color: var(--neon);
-      box-shadow: 0 0 10px rgba(0,255,65,0.25);
-    }
-    .cal-cell.is-selected .cn { color: var(--neon); font-weight: bold; }
-
-    .cal-cell:not(.empty):not(.is-selected):active { transform: scale(0.88); }
-
-    .multi-badge {
-      position: absolute; top: 3px; right: 3px;
-      font-size: 7px; font-family: 'Orbitron', monospace; font-weight: 900;
-      background: var(--neon); color: #000;
-      border-radius: 2px; padding: 0 3px; line-height: 1.5;
-    }
-
-    /* Day panel */
-    #dayPanel {
-      margin-top: 16px; padding-top: 14px;
-      border-top: 1px solid #161616;
-      animation: fadeIn 0.2s ease-out;
-    }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-
-    /* ════ EDIT MODAL ════ */
+    /* ── EDIT MODAL ── */
     #editModal {
       position: fixed; inset: 0; z-index: 800;
-      background: rgba(0,0,0,0.82);
-      backdrop-filter: blur(6px);
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
       display: none; align-items: flex-end;
     }
     #editModal.open { display: flex; }
-
     .modal-sheet {
-      width: 100%; background: #0c0c0c;
-      border-top: 1px solid var(--neon);
-      border-radius: 18px 18px 0 0;
-      max-height: 88vh; overflow-y: auto;
+      width: 100%; background: var(--s1);
+      border-radius: 22px 22px 0 0;
+      max-height: 90vh; overflow-y: auto;
       padding-bottom: env(safe-area-inset-bottom);
-      animation: slideUp 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      animation: slideUp 0.3s cubic-bezier(0.22,1,0.36,1);
     }
-    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    @keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+    .modal-handle { width: 36px; height: 5px; background: var(--s3); border-radius: 3px; margin: 12px auto 0; }
 
-    .modal-handle {
-      width: 36px; height: 4px; background: #2a2a2a;
-      border-radius: 2px; margin: 12px auto 0;
+    .modal-primary-btn {
+      width: 100%; padding: 16px; border: none; border-radius: 14px;
+      font-family: inherit; font-size: 17px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s; touch-action: manipulation;
     }
+    .modal-primary-btn.save   { background: var(--blue); color: #fff; }
+    .modal-primary-btn.save:active   { background: #0062CC; }
+    .modal-primary-btn.cancel { background: var(--s2); color: var(--blue); }
+    .modal-primary-btn.cancel:active { background: var(--s3); }
+    .modal-primary-btn.delete { background: rgba(255,59,48,0.1); color: var(--red); }
+    .modal-primary-btn.delete:active { background: rgba(255,59,48,0.2); }
+    .modal-primary-btn.delete.confirm { background: var(--red); color: #fff; }
 
-    .modal-footer {
-      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
-      padding: 16px;
-    }
-    .modal-btn {
-      font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 0.15em;
-      padding: 12px 4px; border-radius: 6px; cursor: pointer;
-      border: 1px solid; transition: all 0.15s; touch-action: manipulation;
-    }
-    .modal-btn.cancel-btn { color: #444; border-color: #2a2a2a; background: transparent; }
-    .modal-btn.cancel-btn:hover { color: #777; border-color: #444; }
-    .modal-btn.save-btn { color: var(--neon); border-color: var(--neon); background: transparent; }
-    .modal-btn.save-btn:hover { background: rgba(0,255,65,0.1); }
-    .modal-btn.delete-btn { color: #444; border-color: #2a2a2a; background: transparent; }
-    .modal-btn.delete-btn.confirm { color: #ff4444; border-color: #ff4444; }
-
-    /* ── Scrollbar ── */
-    ::-webkit-scrollbar { width: 3px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #1a1a1a; border-radius: 2px; }
+    ::-webkit-scrollbar { width: 0; }
   </style>
 </head>
 <body>
-  <div class="scan-line"></div>
   <div id="flashOverlay"></div>
 
-  <!-- ════════════════════════════════════════
-       LOG VIEW
-  ════════════════════════════════════════ -->
+  <!-- ══════════════════ LOG VIEW ══════════════════ -->
   <div id="viewLog">
 
-    <header class="px-4 pt-10 pb-5">
-      <div class="flex items-start justify-between mb-5">
+    <header style="padding: 58px 20px 16px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px;">
         <div>
-          <h1 class="font-orb text-2xl font-black neon-text tracking-widest leading-none">SWOLLMETER</h1>
-          <p class="text-xs mt-1" style="color:#333; letter-spacing:0.2em;">GYM PROGRESS TRACKER</p>
+          <div style="font-size:34px; font-weight:700; letter-spacing:-0.5px; line-height:1.05;">Swollmeter</div>
+          <div style="font-size:14px; color:var(--l3); margin-top:3px;">Gym Progress Tracker</div>
         </div>
-        <div class="text-right">
-          <div class="text-xs mb-0.5" style="color:#333; letter-spacing:0.15em;">THIS WEEK</div>
-          <div id="weekCount" class="font-orb text-4xl font-black neon-text leading-none">0</div>
-          <div class="text-xs" style="color:#333; letter-spacing:0.15em;">SESSIONS</div>
+        <div style="text-align:right;">
+          <div style="font-size:12px; font-weight:600; color:var(--l3); text-transform:uppercase; letter-spacing:0.05em;">This week</div>
+          <div id="weekCount" style="font-size:44px; font-weight:700; color:var(--blue); line-height:1; letter-spacing:-1px;">0</div>
         </div>
       </div>
-      <div class="flex gap-1.5 justify-between" id="heatmap"></div>
+      <!-- Heatmap -->
+      <div id="heatmap" style="display:flex; gap:4px;"></div>
     </header>
 
-    <div class="mx-4 neon-divider mb-5"></div>
-
-    <main class="px-4 space-y-3" id="exerciseList"></main>
-
-    <div class="px-4 mt-6">
-      <button id="mainLogBtn" class="w-full py-4 text-sm" onclick="logSession()">
-        [ LOG SESSION ]
-      </button>
+    <div style="padding: 8px 20px 0;">
+      <div class="section-label">Exercises</div>
+      <div id="exerciseList" style="display:flex; flex-direction:column; gap:10px;"></div>
     </div>
 
-    <div class="px-4 mt-7 mb-2">
-      <div class="flex items-center justify-between mb-3">
-        <span class="text-xs" style="color:#333; letter-spacing:0.2em;">RECENT SESSIONS</span>
-        <button onclick="toggleHistory()" id="historyToggle"
-          class="text-xs transition-colors" style="color:#444; letter-spacing:0.15em;">SHOW ▾</button>
+    <div style="padding: 20px 20px 0;">
+      <button id="mainLogBtn" onclick="logSession()">Log Session</button>
+    </div>
+
+    <div style="padding: 28px 20px 0;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <span class="section-label" style="margin:0;">Recent Sessions</span>
+        <button id="historyToggle" onclick="toggleHistory()"
+          style="font-size:15px; font-weight:500; color:var(--blue); background:none; border:none; cursor:pointer;">Show</button>
       </div>
-      <div id="historyPanel" class="hidden space-y-2"></div>
+      <div id="historyPanel" style="display:none; flex-direction:column; gap:8px;"></div>
     </div>
-
   </div>
 
-  <!-- ════════════════════════════════════════
-       CALENDAR VIEW
-  ════════════════════════════════════════ -->
-  <div id="viewCalendar">
-
-    <header class="px-4 pt-10 pb-4">
-      <h1 class="font-orb text-xl font-black neon-text tracking-widest leading-none mb-1">CALENDAR</h1>
-      <p class="text-xs" style="color:#333; letter-spacing:0.2em;">SESSION HISTORY</p>
+  <!-- ══════════════════ CALENDAR VIEW ══════════════════ -->
+  <div id="viewCalendar" style="display:none;">
+    <header style="padding: 58px 20px 16px;">
+      <div style="font-size:34px; font-weight:700; letter-spacing:-0.5px; line-height:1.05; margin-bottom:3px;">Calendar</div>
+      <div style="font-size:14px; color:var(--l3);">Session History</div>
     </header>
 
-    <div class="mx-4 neon-divider mb-5"></div>
-
-    <div class="px-4">
+    <div style="padding: 0 20px;">
       <!-- Month nav -->
-      <div class="cal-month-header">
-        <button class="cal-nav-btn" onclick="shiftMonth(-1)">‹</button>
-        <span id="calMonthLabel" class="font-orb text-sm neon-text tracking-widest"></span>
-        <button class="cal-nav-btn" onclick="shiftMonth(1)">›</button>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+        <button onclick="shiftMonth(-1)"
+          style="background:var(--s2); border:none; color:var(--blue); width:36px; height:36px; border-radius:50%; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation;">‹</button>
+        <span id="calMonthLabel" style="font-size:17px; font-weight:600; letter-spacing:-0.2px;"></span>
+        <button onclick="shiftMonth(1)"
+          style="background:var(--s2); border:none; color:var(--blue); width:36px; height:36px; border-radius:50%; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation;">›</button>
       </div>
-
-      <!-- Day-of-week header -->
-      <div class="cal-dow-header">
-        <span>SUN</span><span>MON</span><span>TUE</span>
-        <span>WED</span><span>THU</span><span>FRI</span><span>SAT</span>
+      <div class="cal-dow">
+        <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
       </div>
-
-      <!-- Grid -->
       <div id="calGrid"></div>
-
-      <!-- Selected day detail -->
-      <div id="dayPanel"></div>
+      <div id="dayPanel" style="margin-top:16px;"></div>
     </div>
-
   </div>
 
-  <!-- ════════════════════════════════════════
-       BOTTOM NAV
-  ════════════════════════════════════════ -->
+  <!-- ══════════════════ BOTTOM NAV ══════════════════ -->
   <nav id="bottomNav">
     <button class="nav-tab active" id="tab-log" onclick="setView('log')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M6 4h4v4H6zM14 4h4v4h-4zM6 10h4v4H6zM14 10h4v4h-4zM6 16h4v4H6zM14 16h4v4h-4z"/>
+        <rect x="4.5" y="9" width="3" height="6" rx="1.2"/>
+        <rect x="16.5" y="9" width="3" height="6" rx="1.2"/>
+        <line x1="7.5" y1="12" x2="16.5" y2="12" stroke-width="2.2"/>
+        <line x1="2.5" y1="10.5" x2="4.5" y2="10.5" stroke-width="2.2"/>
+        <line x1="2.5" y1="13.5" x2="4.5" y2="13.5" stroke-width="2.2"/>
+        <line x1="19.5" y1="10.5" x2="21.5" y2="10.5" stroke-width="2.2"/>
+        <line x1="19.5" y1="13.5" x2="21.5" y2="13.5" stroke-width="2.2"/>
       </svg>
-      LOG
+      Log
     </button>
     <button class="nav-tab" id="tab-calendar" onclick="setView('calendar')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="2"/>
-        <path d="M16 2v4M8 2v4M3 10h18"/>
+        <rect x="3" y="4" width="18" height="18" rx="3.5"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <circle cx="8"  cy="15" r="1.1" fill="currentColor" stroke="none"/>
+        <circle cx="12" cy="15" r="1.1" fill="currentColor" stroke="none"/>
+        <circle cx="16" cy="15" r="1.1" fill="currentColor" stroke="none"/>
       </svg>
-      CALENDAR
+      Calendar
     </button>
   </nav>
 
-  <!-- ════════════════════════════════════════
-       EDIT MODAL
-  ════════════════════════════════════════ -->
+  <!-- ══════════════════ EDIT MODAL ══════════════════ -->
   <div id="editModal" onclick="if(event.target===this)closeEdit()">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
 
-      <!-- Header -->
-      <div class="flex items-center justify-between px-4 pt-4 pb-3">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; padding: 18px 20px 14px;">
         <div>
-          <div class="font-orb text-xs neon-text tracking-widest">EDIT SESSION</div>
-          <div id="editDateLabel" class="text-xs mt-1" style="color:#444; letter-spacing:0.1em;"></div>
+          <div style="font-size:19px; font-weight:700; letter-spacing:-0.3px;">Edit Session</div>
+          <div id="editDateLabel" style="font-size:13px; color:var(--l3); margin-top:3px;"></div>
         </div>
-        <button onclick="closeEdit()" style="color:#444; font-size:18px; background:none; border:none; cursor:pointer; padding:4px 8px;">✕</button>
+        <button onclick="closeEdit()"
+          style="width:30px; height:30px; border-radius:50%; background:var(--s2); border:none;
+                 color:var(--l2); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;">✕</button>
       </div>
 
-      <div class="mx-4 neon-divider mb-4"></div>
+      <div style="height:0.5px; background:var(--sep); margin:0 20px;"></div>
 
-      <!-- Exercise inputs -->
-      <div id="editExercises" class="px-4 space-y-4"></div>
+      <div id="editExercises" style="padding:16px 20px; display:flex; flex-direction:column; gap:16px;"></div>
 
-      <!-- Footer buttons -->
-      <div class="modal-footer">
-        <button id="deleteBtn" class="modal-btn delete-btn" onclick="deleteSessionById()">DELETE</button>
-        <button class="modal-btn cancel-btn" onclick="closeEdit()">CANCEL</button>
-        <button class="modal-btn save-btn" onclick="saveEdit()">SAVE</button>
+      <div style="padding:0 20px 20px; display:flex; flex-direction:column; gap:10px;">
+        <button class="modal-primary-btn save" onclick="saveEdit()">Save Changes</button>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <button id="deleteBtn" class="modal-primary-btn delete" onclick="deleteSessionById()">Delete</button>
+          <button class="modal-primary-btn cancel" onclick="closeEdit()">Cancel</button>
+        </div>
       </div>
     </div>
   </div>
@@ -430,26 +342,25 @@
   <script>
   // ── Config ────────────────────────────────────────────────────────────────
   const EXERCISES = [
-    { name: 'Chest Press',    weightStep: 5,  repsStep: 1 },
-    { name: 'Seated Row',     weightStep: 5,  repsStep: 1 },
-    { name: 'Machine Crunch', weightStep: 5,  repsStep: 1 },
-    { name: 'Leg Press',      weightStep: 10, repsStep: 1 },
-    { name: 'Dumbbell Work',  weightStep: 5,  repsStep: 1 },
+    { name:'Chest Press',    emoji:'🏋️', bg:'linear-gradient(135deg,#FF6B35,#F7931E)', weightStep:5,  repsStep:1 },
+    { name:'Seated Row',     emoji:'🚣', bg:'linear-gradient(135deg,#007AFF,#5AC8FA)', weightStep:5,  repsStep:1 },
+    { name:'Machine Crunch', emoji:'🤸', bg:'linear-gradient(135deg,#AF52DE,#FF2D55)', weightStep:5,  repsStep:1 },
+    { name:'Leg Press',      emoji:'🦵', bg:'linear-gradient(135deg,#34C759,#30D158)', weightStep:10, repsStep:1 },
+    { name:'Dumbbell Work',  emoji:'💪', bg:'linear-gradient(135deg,#FF2D55,#FF9500)', weightStep:5,  repsStep:1 },
   ];
-  const DAYS_SHORT  = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
-  const MONTH_NAMES = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
-                       'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  const MONTH_NAMES = ['January','February','March','April','May','June',
+                       'July','August','September','October','November','December'];
   const KEY = 'swollmeter_v2';
 
   // ── State ─────────────────────────────────────────────────────────────────
-  let sessions       = JSON.parse(localStorage.getItem(KEY) || '[]');
-  let currentView    = 'log';
-  let calYear        = new Date().getFullYear();
-  let calMonth       = new Date().getMonth();
-  let selectedDay    = null;   // { year, month, day }
-  let editId         = null;
-  let deletePending  = false;
-  let historyOpen    = false;
+  let sessions      = JSON.parse(localStorage.getItem(KEY) || '[]');
+  let currentView   = 'log';
+  let calYear       = new Date().getFullYear();
+  let calMonth      = new Date().getMonth();
+  let selectedDay   = null;
+  let editId        = null;
+  let deletePending = false;
+  let historyOpen   = false;
 
   function save() { localStorage.setItem(KEY, JSON.stringify(sessions)); }
 
@@ -463,28 +374,24 @@
   }
 
   function getWeekSessions() {
-    const now = new Date();
-    const sow = new Date(now);
-    sow.setDate(now.getDate() - now.getDay());
-    sow.setHours(0, 0, 0, 0);
+    const now = new Date(), sow = new Date(now);
+    sow.setDate(now.getDate() - now.getDay()); sow.setHours(0,0,0,0);
     return sessions.filter(s => new Date(s.date) >= sow);
   }
 
-  function flash(color = 'rgba(0,255,65,0.09)') {
+  function flash(color = 'rgba(0,122,255,0.12)') {
     const ov = document.getElementById('flashOverlay');
     ov.style.background = color;
-    ov.classList.remove('active');
-    void ov.offsetWidth;
-    ov.classList.add('active');
+    ov.classList.remove('active'); void ov.offsetWidth; ov.classList.add('active');
   }
 
-  // ── View switching ────────────────────────────────────────────────────────
+  // ── View ──────────────────────────────────────────────────────────────────
   function setView(v) {
     currentView = v;
-    document.getElementById('viewLog').style.display      = v === 'log'      ? '' : 'none';
-    document.getElementById('viewCalendar').style.display = v === 'calendar' ? '' : 'none';
-    document.getElementById('tab-log').classList.toggle('active',      v === 'log');
-    document.getElementById('tab-calendar').classList.toggle('active', v === 'calendar');
+    document.getElementById('viewLog').style.display      = v==='log'      ? '' : 'none';
+    document.getElementById('viewCalendar').style.display = v==='calendar' ? '' : 'none';
+    document.getElementById('tab-log').classList.toggle('active',      v==='log');
+    document.getElementById('tab-calendar').classList.toggle('active', v==='calendar');
     if (v === 'calendar') renderCalendar();
   }
 
@@ -494,22 +401,16 @@
     const today = new Date().getDay();
     const week  = getWeekSessions();
     const byDay = {};
-    week.forEach(s => { const d = new Date(s.date).getDay(); byDay[d] = (byDay[d] || 0) + 1; });
+    week.forEach(s => { const d = new Date(s.date).getDay(); byDay[d] = (byDay[d]||0)+1; });
 
     el.innerHTML = '';
-    DAYS_SHORT.forEach((label, i) => {
-      const isActive = (byDay[i] || 0) > 0;
-      const count    = byDay[i] || 0;
+    ['S','M','T','W','T','F','S'].forEach((label, i) => {
+      const isActive = (byDay[i]||0) > 0;
       const div = document.createElement('div');
-      div.className = `hm-day ${isActive ? 'active' : ''} ${i === today ? 'today' : ''}`;
-      div.innerHTML = `
-        <span class="hm-label">${label}</span>
-        <span class="hm-dot"></span>
-        ${count > 1 ? `<span class="count-badge">${count}</span>` : ''}
-      `;
+      div.className = `hm-day ${isActive?'active':''} ${i===today?'today':''}`;
+      div.innerHTML = `<div class="hm-dot">${isActive ? '✓' : ''}</div><span class="hm-label">${label}</span>`;
       el.appendChild(div);
     });
-
     document.getElementById('weekCount').textContent = week.length;
   }
 
@@ -518,115 +419,111 @@
     const list = document.getElementById('exerciseList');
     list.innerHTML = '';
 
-    EXERCISES.forEach(({ name, weightStep, repsStep }, idx) => {
-      const last      = getLastEntry(name);
-      const hasLast   = last !== null;
-      const lastLabel = hasLast ? `LAST: ${last.weight} LB &times; ${last.reps} REPS` : 'NO DATA YET';
-      const lastColor = hasLast ? 'var(--neon-dim)' : 'var(--text-dim)';
-
+    EXERCISES.forEach(({ name, emoji, bg, weightStep, repsStep }, idx) => {
+      const last    = getLastEntry(name);
+      const hasLast = last !== null;
       const card = document.createElement('div');
-      card.className = 'card p-4';
-      card.id = `card-${idx}`;
+      card.className = 'card'; card.id = `card-${idx}`;
+      card.style.padding = '14px';
       card.innerHTML = `
-        <div class="flex items-start justify-between mb-3">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+          <div class="ex-icon" style="background:${bg};">${emoji}</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:17px; font-weight:600; letter-spacing:-0.2px;">${name}</div>
+            <div style="font-size:13px; color:${hasLast ? 'var(--blue)' : 'var(--l3)'}; margin-top:2px;">
+              ${hasLast ? `Last: ${last.weight} lb &times; ${last.reps} reps` : 'No data yet'}
+            </div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div>
-            <div class="text-sm font-bold" style="color:#d0d0d0; letter-spacing:0.1em;">${name.toUpperCase()}</div>
-            <div class="text-xs mt-1" style="color:${lastColor}; letter-spacing:0.12em;">${lastLabel}</div>
-          </div>
-          <span class="font-orb text-xs" style="color:#222;">#${String(idx+1).padStart(2,'0')}</span>
-        </div>
-        <div class="flex gap-3">
-          <div class="flex-1">
-            <div class="text-xs mb-1" style="color:#333; letter-spacing:0.15em;">WEIGHT (LB)</div>
-            <div class="flex h-10">
-              <button class="step-btn rounded-l" style="border-right:none;" onclick="step('w${idx}',-${weightStep})">−</button>
-              <input type="number" id="w${idx}" min="0" step="${weightStep}" placeholder="0"
-                value="${hasLast ? last.weight : ''}" style="border-radius:0; height:40px; font-size:15px;">
-              <button class="step-btn rounded-r" style="border-left:none;" onclick="step('w${idx}',${weightStep})">+</button>
+            <div style="font-size:11px; font-weight:600; color:var(--l3); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Weight (lb)</div>
+            <div style="display:flex; border-radius:10px; overflow:hidden;">
+              <button class="step-btn" style="border-radius:10px 0 0 10px;" onclick="step('w${idx}',-${weightStep})">−</button>
+              <input type="number" id="w${idx}" min="0" step="${weightStep}" placeholder="0" value="${hasLast ? last.weight : ''}">
+              <button class="step-btn" style="border-radius:0 10px 10px 0;" onclick="step('w${idx}',${weightStep})">+</button>
             </div>
           </div>
-          <div class="flex-1">
-            <div class="text-xs mb-1" style="color:#333; letter-spacing:0.15em;">REPS</div>
-            <div class="flex h-10">
-              <button class="step-btn rounded-l" style="border-right:none;" onclick="step('r${idx}',-${repsStep})">−</button>
-              <input type="number" id="r${idx}" min="0" step="${repsStep}" placeholder="0"
-                value="${hasLast ? last.reps : ''}" style="border-radius:0; height:40px; font-size:15px;">
-              <button class="step-btn rounded-r" style="border-left:none;" onclick="step('r${idx}',${repsStep})">+</button>
+          <div>
+            <div style="font-size:11px; font-weight:600; color:var(--l3); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Reps</div>
+            <div style="display:flex; border-radius:10px; overflow:hidden;">
+              <button class="step-btn" style="border-radius:10px 0 0 10px;" onclick="step('r${idx}',-${repsStep})">−</button>
+              <input type="number" id="r${idx}" min="0" step="${repsStep}" placeholder="0" value="${hasLast ? last.reps : ''}">
+              <button class="step-btn" style="border-radius:0 10px 10px 0;" onclick="step('r${idx}',${repsStep})">+</button>
             </div>
           </div>
-        </div>
-      `;
+        </div>`;
       list.appendChild(card);
     });
   }
 
   function step(id, delta) {
     const el = document.getElementById(id);
-    el.value = Math.max(0, (parseFloat(el.value) || 0) + delta);
+    el.value = Math.max(0, (parseFloat(el.value)||0) + delta);
   }
 
   // ── Log session ───────────────────────────────────────────────────────────
   function logSession() {
-    const entries = {};
-    let hasData   = false;
-
+    const entries = {}; let hasData = false;
     EXERCISES.forEach(({ name }, idx) => {
-      const w = parseFloat(document.getElementById(`w${idx}`).value) || 0;
-      const r = parseInt(document.getElementById(`r${idx}`).value)   || 0;
-      entries[name] = { weight: w, reps: r };
+      const w = parseFloat(document.getElementById(`w${idx}`).value)||0;
+      const r = parseInt(document.getElementById(`r${idx}`).value)||0;
+      entries[name] = { weight:w, reps:r };
       if (w > 0 || r > 0) hasData = true;
     });
+    if (!hasData) { flash('rgba(255,59,48,0.1)'); return; }
 
-    if (!hasData) { flash('rgba(255,40,40,0.08)'); return; }
-
-    sessions.push({ id: Date.now(), date: new Date().toISOString(), entries });
+    sessions.push({ id:Date.now(), date:new Date().toISOString(), entries });
     save();
 
-    flash();
+    flash('rgba(52,199,89,0.1)');
     EXERCISES.forEach((_, idx) => {
       const card = document.getElementById(`card-${idx}`);
       if (!card) return;
-      setTimeout(() => { card.classList.remove('logged'); void card.offsetWidth; card.classList.add('logged'); }, idx * 70);
+      setTimeout(() => { card.classList.remove('logged'); void card.offsetWidth; card.classList.add('logged'); }, idx * 65);
     });
     const btn = document.getElementById('mainLogBtn');
-    btn.textContent = '[ ✓ LOGGED ]';
-    btn.classList.add('firing');
-    setTimeout(() => { btn.classList.remove('firing'); btn.textContent = '[ LOG SESSION ]'; }, 1600);
+    btn.textContent = '✓  Logged!'; btn.classList.add('success');
+    setTimeout(() => { btn.classList.remove('success'); btn.textContent = 'Log Session'; }, 1700);
 
-    renderHeatmap();
-    renderExercises();
+    renderHeatmap(); renderExercises();
     if (historyOpen) renderHistory();
   }
 
   // ── History ───────────────────────────────────────────────────────────────
   function toggleHistory() {
     historyOpen = !historyOpen;
-    document.getElementById('historyPanel').classList.toggle('hidden', !historyOpen);
-    document.getElementById('historyToggle').textContent = historyOpen ? 'HIDE ▴' : 'SHOW ▾';
+    document.getElementById('historyPanel').style.display = historyOpen ? 'flex' : 'none';
+    document.getElementById('historyToggle').textContent  = historyOpen ? 'Hide' : 'Show';
     if (historyOpen) renderHistory();
   }
 
-  function sessionCardHTML(s, showEditBtn = true) {
+  function sessionCardHTML(s) {
     const d       = new Date(s.date);
     const dateStr = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
     const timeStr = d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
-    const rows    = EXERCISES.map(({ name }) => {
+    const rows    = EXERCISES.map(({ name, emoji }) => {
       const e = s.entries[name];
-      if (!e || (e.weight === 0 && e.reps === 0)) return '';
-      return `<div class="flex justify-between"><span style="color:#333;">${name}</span><span style="color:var(--neon-dim);">${e.weight}lb × ${e.reps}</span></div>`;
+      if (!e || (e.weight===0 && e.reps===0)) return '';
+      return `<div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0;">
+        <span style="font-size:14px; color:var(--l2);">${emoji}&nbsp; ${name}</span>
+        <span style="font-size:14px; font-weight:500;">${e.weight} lb &times; ${e.reps}</span>
+      </div>`;
     }).filter(Boolean).join('');
 
     return `
-      <div class="history-card p-3">
-        <div class="flex justify-between items-center mb-2">
-          <span class="text-xs font-bold" style="color:var(--neon-dim); letter-spacing:0.1em;">${dateStr} · ${timeStr}</span>
-          ${showEditBtn ? `
-          <div class="flex gap-2">
-            <button class="del-btn" id="del-${s.id}" onclick="deleteCard(${s.id}, this)">DELETE</button>
-            <button class="edit-btn" onclick="openEdit(${s.id})">EDIT</button>
-          </div>` : ''}
+      <div class="history-card">
+        <div style="display:flex; justify-content:space-between; align-items:center; ${rows ? 'margin-bottom:10px;' : ''}">
+          <div>
+            <div style="font-size:15px; font-weight:600;">${dateStr}</div>
+            <div style="font-size:13px; color:var(--l3); margin-top:2px;">${timeStr}</div>
+          </div>
+          <div style="display:flex; gap:8px; flex-shrink:0;">
+            <button class="btn-del" id="del-${s.id}" onclick="deleteCard(${s.id},this)">Delete</button>
+            <button class="btn-edit" onclick="openEdit(${s.id})">Edit</button>
+          </div>
         </div>
-        <div class="space-y-1 text-xs tracking-wider">${rows || '<span style="color:#2a2a2a;">empty</span>'}</div>
+        ${rows ? `<div style="border-top:0.5px solid var(--sep); padding-top:8px;">${rows}</div>` : ''}
       </div>`;
   }
 
@@ -634,8 +531,8 @@
     const panel  = document.getElementById('historyPanel');
     const recent = [...sessions].reverse().slice(0, 15);
     panel.innerHTML = recent.length === 0
-      ? '<div class="text-xs text-center py-4" style="color:#333; letter-spacing:0.15em;">NO SESSIONS YET</div>'
-      : recent.map(s => sessionCardHTML(s)).join('');
+      ? '<div style="font-size:15px; color:var(--l3); text-align:center; padding:20px 0;">No sessions yet</div>'
+      : recent.map(sessionCardHTML).join('');
   }
 
   // ── Calendar ──────────────────────────────────────────────────────────────
@@ -643,152 +540,111 @@
     calMonth += delta;
     if (calMonth > 11) { calMonth = 0; calYear++; }
     if (calMonth < 0)  { calMonth = 11; calYear--; }
-    selectedDay = null;
-    renderCalendar();
+    selectedDay = null; renderCalendar();
   }
 
   function renderCalendar() {
     document.getElementById('calMonthLabel').textContent = `${MONTH_NAMES[calMonth]} ${calYear}`;
-
-    const now          = new Date();
-    const daysInMonth  = new Date(calYear, calMonth + 1, 0).getDate();
+    const now = new Date();
+    const daysInMonth  = new Date(calYear, calMonth+1, 0).getDate();
     const firstWeekday = new Date(calYear, calMonth, 1).getDay();
-
-    // Group sessions by day-of-month for this month
     const byDay = {};
     sessions.forEach(s => {
       const d = new Date(s.date);
-      if (d.getFullYear() === calYear && d.getMonth() === calMonth) {
-        const day = d.getDate();
-        byDay[day] = (byDay[day] || 0) + 1;
-      }
+      if (d.getFullYear()===calYear && d.getMonth()===calMonth)
+        byDay[d.getDate()] = (byDay[d.getDate()]||0) + 1;
     });
 
     const grid = document.getElementById('calGrid');
     grid.innerHTML = '';
-
-    // Empty offset cells
     for (let i = 0; i < firstWeekday; i++) {
-      const el = document.createElement('div');
-      el.className = 'cal-cell empty';
-      grid.appendChild(el);
+      const el = document.createElement('div'); el.className = 'cal-cell empty'; grid.appendChild(el);
     }
-
-    // Day cells
     for (let d = 1; d <= daysInMonth; d++) {
-      const isToday    = now.getFullYear() === calYear && now.getMonth() === calMonth && now.getDate() === d;
-      const count      = byDay[d] || 0;
-      const isSelected = selectedDay && selectedDay.year === calYear && selectedDay.month === calMonth && selectedDay.day === d;
-
+      const isToday = now.getFullYear()===calYear && now.getMonth()===calMonth && now.getDate()===d;
+      const isSel   = selectedDay && selectedDay.year===calYear && selectedDay.month===calMonth && selectedDay.day===d;
       const el = document.createElement('div');
-      el.className = [
-        'cal-cell',
-        count > 0   ? 'has-session' : '',
-        isToday     ? 'is-today'    : '',
-        isSelected  ? 'is-selected' : '',
-      ].join(' ');
-      el.innerHTML = `
-        <span class="cn">${d}</span>
-        <span class="cd"></span>
-        ${count > 1 ? `<span class="multi-badge">${count}</span>` : ''}
-      `;
-      el.onclick = () => selectCalDay(calYear, calMonth, d);
+      el.className = `cal-cell ${byDay[d]?'has-session':''} ${isToday?'is-today':''} ${isSel?'is-selected':''}`;
+      el.innerHTML  = `<span class="cn">${d}</span><span class="cd"></span>`;
+      el.onclick    = () => selectCalDay(calYear, calMonth, d);
       grid.appendChild(el);
     }
-
     renderDayPanel();
   }
 
   function selectCalDay(year, month, day) {
-    if (selectedDay && selectedDay.year === year && selectedDay.month === month && selectedDay.day === day) {
-      selectedDay = null;
-    } else {
-      selectedDay = { year, month, day };
-    }
+    selectedDay = (selectedDay && selectedDay.year===year && selectedDay.month===month && selectedDay.day===day)
+      ? null : { year, month, day };
     renderCalendar();
   }
 
   function renderDayPanel() {
     const panel = document.getElementById('dayPanel');
     if (!selectedDay) { panel.innerHTML = ''; return; }
-
     const { year, month, day } = selectedDay;
     const daySessions = sessions.filter(s => {
       const d = new Date(s.date);
-      return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+      return d.getFullYear()===year && d.getMonth()===month && d.getDate()===day;
     });
-
     const dateStr = new Date(year, month, day).toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
-
-    if (daySessions.length === 0) {
-      panel.innerHTML = `<div class="text-xs text-center py-5" style="color:#2a2a2a; letter-spacing:0.15em;">NO SESSIONS — ${dateStr.toUpperCase()}</div>`;
-      return;
-    }
-
     panel.innerHTML = `
-      <div class="text-xs mb-3" style="color:#444; letter-spacing:0.15em;">${dateStr.toUpperCase()}</div>
-      <div class="space-y-2">${daySessions.map(s => sessionCardHTML(s)).join('')}</div>
-    `;
+      <div style="height:0.5px; background:var(--sep); margin-bottom:16px;"></div>
+      <div style="font-size:15px; font-weight:600; color:var(--l2); margin-bottom:12px;">${dateStr}</div>
+      ${daySessions.length === 0
+        ? `<div style="font-size:15px; color:var(--l3); text-align:center; padding:16px 0;">No sessions this day</div>`
+        : `<div style="display:flex; flex-direction:column; gap:8px;">${daySessions.map(sessionCardHTML).join('')}</div>`
+      }`;
   }
 
   // ── Edit modal ────────────────────────────────────────────────────────────
   function openEdit(sessionId) {
     const session = sessions.find(s => s.id === sessionId);
     if (!session) return;
-
-    editId        = sessionId;
-    deletePending = false;
+    editId = sessionId; deletePending = false;
 
     const d = new Date(session.date);
     document.getElementById('editDateLabel').textContent =
-      d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' }) +
-      '  ·  ' +
-      d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+      d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }) +
+      ' · ' + d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
 
-    // Build exercise inputs
-    const container = document.getElementById('editExercises');
-    container.innerHTML = EXERCISES.map(({ name, weightStep, repsStep }, idx) => {
-      const entry = session.entries[name] || { weight: 0, reps: 0 };
+    document.getElementById('editExercises').innerHTML = EXERCISES.map(({ name, emoji, bg, weightStep, repsStep }, idx) => {
+      const e = session.entries[name] || { weight:0, reps:0 };
       return `
         <div>
-          <div class="text-xs mb-2" style="color:#555; letter-spacing:0.15em;">${name.toUpperCase()}</div>
-          <div class="flex gap-3">
-            <div class="flex-1">
-              <div class="text-xs mb-1" style="color:#2a2a2a; letter-spacing:0.12em;">WEIGHT (LB)</div>
-              <div class="flex h-10">
-                <button class="step-btn rounded-l" style="border-right:none;" onclick="step('ew${idx}',-${weightStep})">−</button>
-                <input type="number" id="ew${idx}" min="0" step="${weightStep}"
-                  value="${entry.weight || ''}" placeholder="0"
-                  style="border-radius:0; height:40px; font-size:14px;">
-                <button class="step-btn rounded-r" style="border-left:none;" onclick="step('ew${idx}',${weightStep})">+</button>
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+            <div class="ex-icon" style="background:${bg}; width:32px; height:32px; border-radius:8px; font-size:16px;">${emoji}</div>
+            <span style="font-size:15px; font-weight:600;">${name}</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div>
+              <div style="font-size:11px; font-weight:600; color:var(--l3); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Weight (lb)</div>
+              <div style="display:flex; border-radius:10px; overflow:hidden;">
+                <button class="step-btn" style="border-radius:10px 0 0 10px;" onclick="step('ew${idx}',-${weightStep})">−</button>
+                <input type="number" id="ew${idx}" min="0" step="${weightStep}" value="${e.weight||''}" placeholder="0">
+                <button class="step-btn" style="border-radius:0 10px 10px 0;" onclick="step('ew${idx}',${weightStep})">+</button>
               </div>
             </div>
-            <div class="flex-1">
-              <div class="text-xs mb-1" style="color:#2a2a2a; letter-spacing:0.12em;">REPS</div>
-              <div class="flex h-10">
-                <button class="step-btn rounded-l" style="border-right:none;" onclick="step('er${idx}',-${repsStep})">−</button>
-                <input type="number" id="er${idx}" min="0" step="${repsStep}"
-                  value="${entry.reps || ''}" placeholder="0"
-                  style="border-radius:0; height:40px; font-size:14px;">
-                <button class="step-btn rounded-r" style="border-left:none;" onclick="step('er${idx}',${repsStep})">+</button>
+            <div>
+              <div style="font-size:11px; font-weight:600; color:var(--l3); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Reps</div>
+              <div style="display:flex; border-radius:10px; overflow:hidden;">
+                <button class="step-btn" style="border-radius:10px 0 0 10px;" onclick="step('er${idx}',-${repsStep})">−</button>
+                <input type="number" id="er${idx}" min="0" step="${repsStep}" value="${e.reps||''}" placeholder="0">
+                <button class="step-btn" style="border-radius:0 10px 10px 0;" onclick="step('er${idx}',${repsStep})">+</button>
               </div>
             </div>
           </div>
-        </div>`;
+        </div>
+        ${idx < EXERCISES.length-1 ? '<div style="height:0.5px; background:var(--sep);"></div>' : ''}`;
     }).join('');
 
-    // Reset delete button
     const delBtn = document.getElementById('deleteBtn');
-    delBtn.textContent = 'DELETE';
-    delBtn.classList.remove('confirm');
-
+    delBtn.textContent = 'Delete'; delBtn.classList.remove('confirm');
     document.getElementById('editModal').classList.add('open');
     document.body.style.overflow = 'hidden';
   }
 
   function closeEdit() {
-    editId = null;
-    deletePending = false;
+    editId = null; deletePending = false;
     document.getElementById('editModal').classList.remove('open');
     document.body.style.overflow = '';
   }
@@ -797,18 +653,13 @@
     if (!editId) return;
     const session = sessions.find(s => s.id === editId);
     if (!session) return;
-
     EXERCISES.forEach(({ name }, idx) => {
       session.entries[name] = {
-        weight: parseFloat(document.getElementById(`ew${idx}`).value) || 0,
-        reps:   parseInt(document.getElementById(`er${idx}`).value)   || 0,
+        weight: parseFloat(document.getElementById(`ew${idx}`).value)||0,
+        reps:   parseInt(document.getElementById(`er${idx}`).value)||0,
       };
     });
-
-    save();
-    closeEdit();
-    flash();
-    refreshAll();
+    save(); closeEdit(); flash('rgba(52,199,89,0.1)'); refreshAll();
   }
 
   function deleteSessionById() {
@@ -816,36 +667,29 @@
     if (!deletePending) {
       deletePending = true;
       const btn = document.getElementById('deleteBtn');
-      btn.textContent = 'CONFIRM?';
-      btn.classList.add('confirm');
-      return;
+      btn.textContent = 'Confirm Delete'; btn.classList.add('confirm'); return;
     }
     sessions = sessions.filter(s => s.id !== editId);
-    save();
-    closeEdit();
-    refreshAll();
+    save(); closeEdit(); refreshAll();
   }
 
   function deleteCard(sessionId, btn) {
     if (!btn.classList.contains('confirm')) {
-      btn.classList.add('confirm');
-      btn.textContent = 'CONFIRM?';
-      setTimeout(() => { if (btn.classList.contains('confirm')) { btn.classList.remove('confirm'); btn.textContent = 'DELETE'; } }, 2500);
+      btn.classList.add('confirm'); btn.textContent = 'Confirm?';
+      setTimeout(() => { btn.classList.remove('confirm'); btn.textContent = 'Delete'; }, 2500);
       return;
     }
     sessions = sessions.filter(s => s.id !== sessionId);
-    save();
-    refreshAll();
+    save(); refreshAll();
   }
 
   function refreshAll() {
-    renderHeatmap();
-    renderExercises();
+    renderHeatmap(); renderExercises();
     if (historyOpen) renderHistory();
     if (currentView === 'calendar') renderCalendar();
   }
 
-  // ── Init ──────────────────────────────────────────────────────────────────
+  // ── Init ─────────────────────────────────────────────────────────────────
   setView('log');
   renderHeatmap();
   renderExercises();
