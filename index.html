@@ -691,9 +691,7 @@
   let editId        = null;
   let deletePending = false;
   let historyOpen   = false;
-  let friendsListening   = false;
-  let userSessionsRef    = null;   // stored so we can .off() cleanly
-  let friendsRef         = null;
+  let masterRef          = null;   // single listener on db.ref('sessions')
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function usernameColor(name) {
@@ -772,25 +770,19 @@
   }
 
   function doLogout() {
-    // Detach listeners using stored refs so teardown is exact
-    if (userSessionsRef)  { userSessionsRef.off();  userSessionsRef  = null; }
-    if (friendsRef)       { friendsRef.off();        friendsRef       = null; }
-    friendsListening = false;
+    if (masterRef) { masterRef.off(); masterRef = null; }
     currentUser = null;
     sessions = [];
     allSessions = [];
     historyOpen = false;
     localStorage.removeItem(USER_KEY);
-
     document.getElementById('mainApp').style.display = 'none';
     document.getElementById('loginScreen').style.display = '';
     document.getElementById('usernameInput').value = '';
-    document.getElementById('loginBtn').disabled = false;
-    document.getElementById('loginBtn').textContent = 'Enter Your Name';
+    resetLoginBtn();
   }
 
   function enterApp() {
-    // Update top bar
     const color   = usernameColor(currentUser);
     const initial = currentUser[0].toUpperCase();
     const av = document.getElementById('topBarAvatar');
@@ -798,63 +790,43 @@
     av.textContent = initial;
     document.getElementById('topBarName').textContent = currentUser;
 
-    // Show app, hide login
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = '';
 
-    // Reset state and render immediately — don't wait for Firebase listener.
-    // This ensures exercise cards always exist in the DOM before user tries to log.
-    sessions = [];
-    renderHeatmap();
-    renderExercises();
+    sessions = []; allSessions = [];
+    renderHeatmap(); renderExercises();
 
-    // Start real-time listener (will re-render when Firebase responds)
-    startUserSessionsListener();
-
+    startMasterListener();
     setView('log');
   }
 
-  // ── Real-time listeners ───────────────────────────────────────────────────
-  function startUserSessionsListener() {
-    userSessionsRef = db.ref('sessions').orderByChild('username').equalTo(currentUser);
-    userSessionsRef.on('value', snap => {
-      sessions = [];
-      snap.forEach(child => sessions.push(child.val()));
-      sessions.sort((a, b) => new Date(a.date) - new Date(b.date));
+  // ── ONE listener on db.ref('sessions') — no queries, filter client-side ──
+  function startMasterListener() {
+    if (masterRef) masterRef.off();
+    masterRef = db.ref('sessions');
+    masterRef.on('value', snap => {
+      const all = [];
+      snap.forEach(child => { const s = child.val(); if (s) all.push(s); });
+
+      allSessions = [...all].sort((a, b) => new Date(b.date) - new Date(a.date));
+      sessions    = all.filter(s => s.username === currentUser)
+                       .sort((a, b) => new Date(a.date) - new Date(b.date));
 
       if (currentView === 'log') {
         renderHeatmap(); renderExercises();
         if (historyOpen) renderHistory();
       }
       if (currentView === 'calendar') renderCalendar();
+      if (currentView === 'friends')  renderFriends();
     });
   }
 
-  function startFriendsListener() {
-    if (friendsListening) return;
-    friendsListening = true;
-    // Use plain .ref() — no orderByChild — to avoid needing a DB index.
-    // Sort client-side instead.
-    friendsRef = db.ref('sessions');
-    friendsRef.on('value', snap => {
-      allSessions = [];
-      snap.forEach(child => allSessions.push(child.val()));
-      allSessions.sort((a, b) => new Date(b.date) - new Date(a.date)); // newest first
-      if (currentView === 'friends') renderFriends();
-    });
+  // ── Fire-and-forget writes — nothing ever awaited ─────────────────────────
+  function dbWrite(path, data) {
+    db.ref(path).set(data).catch(e => console.error('Write error:', e));
   }
-
-  // ── DB writes ─────────────────────────────────────────────────────────────
-  function dbSaveSession(session) {
-    return db.ref(`sessions/${session.id}`).set({ ...session, username: currentUser });
-  }
-
-  function dbDeleteSession(sessionId) {
-    return db.ref(`sessions/${sessionId}`).remove();
-  }
-
-  function dbUpdateEntries(sessionId, entries) {
-    return db.ref(`sessions/${sessionId}/entries`).set(entries);
+  function dbRemove(path) {
+    db.ref(path).remove().catch(e => console.error('Remove error:', e));
   }
 
   // ── View routing ──────────────────────────────────────────────────────────
@@ -865,28 +837,8 @@
     document.getElementById('viewFriends').style.display  = v === 'friends'  ? '' : 'none';
     ['log','calendar','friends'].forEach(t =>
       document.getElementById(`tab-${t}`).classList.toggle('active', v === t));
-
     if (v === 'calendar') renderCalendar();
-    if (v === 'friends') {
-      // Always show loading and do a fresh one-time fetch on every tab open.
-      // This guarantees up-to-date data regardless of listener state.
-      document.getElementById('friendsFeed').innerHTML =
-        `<div style="text-align:center;padding:40px 0;">
-           <span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>
-         </div>`;
-      db.ref('sessions').once('value').then(snap => {
-        allSessions = [];
-        snap.forEach(child => allSessions.push(child.val()));
-        allSessions.sort((a, b) => new Date(b.date) - new Date(a.date));
-        renderFriends();
-      }).catch(e => {
-        document.getElementById('friendsFeed').innerHTML =
-          `<div style="text-align:center;padding:40px 0;font-family:'Cinzel',serif;font-size:12px;color:var(--red-light);letter-spacing:0.1em;">Failed to load — check Firebase rules</div>`;
-        console.error('Friends fetch error:', e);
-      });
-      // Also keep the persistent listener running for real-time updates
-      startFriendsListener();
-    }
+    if (v === 'friends')  renderFriends();
   }
 
   // ── Heatmap ───────────────────────────────────────────────────────────────
@@ -966,7 +918,7 @@
   }
 
   // ── Log session ───────────────────────────────────────────────────────────
-  async function logSession() {
+  function logSession() {
     const entries = {}; let hasData = false;
     EXERCISES.forEach(({ name }, idx) => {
       const w = parseFloat(document.getElementById(`w${idx}`).value)||0;
@@ -978,8 +930,10 @@
 
     const session = { id: Date.now(), date: new Date().toISOString(), entries, username: currentUser };
 
-    // Optimistic update
+    // Optimistic local update — master listener will sync from Firebase shortly
     sessions.push(session);
+    allSessions.unshift(session);
+
     flash('rgba(0,199,129,0.08)');
     EXERCISES.forEach((_, idx) => {
       const card = document.getElementById(`card-${idx}`);
@@ -993,25 +947,8 @@
     renderHeatmap(); renderExercises();
     if (historyOpen) renderHistory();
 
-    // Persist to Firebase
-    try {
-      await dbSaveSession(session);
-    } catch(e) {
-      console.error('Save failed:', e);
-      // Roll back optimistic update and show error
-      sessions = sessions.filter(s => s.id !== session.id);
-      flash('rgba(200,41,28,0.2)');
-      btn.classList.remove('success');
-      btn.style.borderColor = 'var(--red-light)';
-      btn.style.color = 'var(--red-light)';
-      btn.textContent = '✗  Save Failed — Check Firebase';
-      setTimeout(() => {
-        btn.style.borderColor = '';
-        btn.style.color = '';
-        btn.textContent = 'Log Session';
-        renderHeatmap(); renderExercises();
-      }, 3000);
-    }
+    // Fire-and-forget write — never awaited, can't hang
+    dbWrite(`sessions/${session.id}`, session);
   }
 
   // ── History ───────────────────────────────────────────────────────────────
@@ -1205,7 +1142,7 @@
     document.body.style.overflow = '';
   }
 
-  async function saveEdit() {
+  function saveEdit() {
     if (!editId) return;
     const session = sessions.find(s => s.id === editId);
     if (!session) return;
@@ -1216,16 +1153,15 @@
         reps:   parseInt(document.getElementById(`er${idx}`).value)||0,
       };
     });
-    session.entries = entries; // optimistic
+    session.entries = entries;
     closeEdit();
     flash('rgba(0,199,129,0.08)');
     renderHeatmap(); renderExercises();
     if (historyOpen) renderHistory();
-    try { await dbUpdateEntries(editId, entries); }
-    catch(e) { console.error('Update failed:', e); }
+    dbWrite(`sessions/${editId}/entries`, entries);
   }
 
-  async function deleteSessionById() {
+  function deleteSessionById() {
     if (!editId) return;
     if (!deletePending) {
       deletePending = true;
@@ -1234,26 +1170,27 @@
       return;
     }
     const id = editId;
-    sessions = sessions.filter(s => s.id !== id); // optimistic
+    sessions    = sessions.filter(s => s.id !== id);
+    allSessions = allSessions.filter(s => s.id !== id);
     closeEdit();
     renderHeatmap(); renderExercises();
     if (historyOpen) renderHistory();
-    try { await dbDeleteSession(id); }
-    catch(e) { console.error('Delete failed:', e); }
+    dbRemove(`sessions/${id}`);
   }
 
-  async function deleteCard(sessionId, btn) {
+  function deleteCard(sessionId, btn) {
     if (!btn.classList.contains('confirm')) {
       btn.classList.add('confirm'); btn.textContent = 'Confirm?';
       setTimeout(() => { if (!btn.classList.contains('confirm')) return; btn.classList.remove('confirm'); btn.textContent = 'Delete'; }, 2500);
       return;
     }
-    sessions = sessions.filter(s => s.id !== sessionId); // optimistic
+    sessions    = sessions.filter(s => s.id !== sessionId);
+    allSessions = allSessions.filter(s => s.id !== sessionId);
     renderHeatmap(); renderExercises();
     if (historyOpen) renderHistory();
     if (currentView === 'calendar') renderCalendar();
-    try { await dbDeleteSession(sessionId); }
-    catch(e) { console.error('Delete failed:', e); }
+    if (currentView === 'friends')  renderFriends();
+    dbRemove(`sessions/${sessionId}`);
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────
