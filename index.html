@@ -22,6 +22,7 @@
       --green:     #00C781;
       --red:       #C8291C;
       --red-light: #E84545;
+      --topbar-h:  50px;
     }
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
@@ -39,6 +40,119 @@
         radial-gradient(ellipse at 0% 100%, rgba(200,155,60,0.06) 0%, transparent 50%);
     }
 
+    /* ── Login screen ── */
+    #loginScreen {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 32px 24px;
+      background-image:
+        radial-gradient(ellipse at 50% 20%, rgba(11,196,227,0.06) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 80%, rgba(200,155,60,0.08) 0%, transparent 45%);
+    }
+    #loginScreen .login-card {
+      width: 100%; max-width: 340px;
+      background: var(--s2);
+      border: 1px solid var(--sep);
+      padding: 32px 24px;
+      position: relative;
+    }
+    #loginScreen .login-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(200,155,60,0.05) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    /* corner ornaments */
+    #loginScreen .login-card::after {
+      content: '';
+      position: absolute;
+      top: -1px; left: -1px;
+      width: 14px; height: 14px;
+      border-top: 2px solid var(--gold);
+      border-left: 2px solid var(--gold);
+    }
+    .corner-br {
+      position: absolute;
+      bottom: -1px; right: -1px;
+      width: 14px; height: 14px;
+      border-bottom: 2px solid var(--gold);
+      border-right: 2px solid var(--gold);
+      pointer-events: none;
+    }
+
+    .login-input {
+      width: 100%;
+      background: var(--s3);
+      border: 1px solid var(--sep);
+      color: var(--label);
+      font-family: 'Cinzel', serif;
+      font-size: 15px; font-weight: 600;
+      padding: 13px 14px;
+      outline: none;
+      letter-spacing: 0.06em;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .login-input:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 12px rgba(200,155,60,0.15);
+    }
+    .login-input::placeholder { color: var(--l3); font-weight: 400; }
+
+    .login-btn {
+      width: 100%; padding: 14px;
+      background: linear-gradient(180deg, #1a3a5c 0%, #0e2440 100%);
+      color: var(--gold-hi);
+      border: 1px solid var(--gold);
+      font-family: 'Cinzel', serif;
+      font-size: 12px; font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      transition: all 0.15s;
+      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+      position: relative;
+    }
+    .login-btn:active { background: #0d2035; box-shadow: 0 0 16px rgba(200,155,60,0.3); }
+    .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Top bar (shown when logged in) ── */
+    #topBar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 400;
+      height: calc(var(--topbar-h) + env(safe-area-inset-top));
+      padding-top: env(safe-area-inset-top);
+      background: rgba(1,10,19,0.95);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--sep);
+      display: flex; align-items: center; justify-content: space-between;
+      padding-left: 16px; padding-right: 16px;
+    }
+    .topbar-user {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .topbar-avatar {
+      width: 26px; height: 26px;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cinzel', serif; font-weight: 900; font-size: 11px;
+      color: #010A13; flex-shrink: 0;
+    }
+    .topbar-name {
+      font-size: 11px; font-weight: 700;
+      font-family: 'Cinzel', serif;
+      letter-spacing: 0.1em; color: var(--l2);
+    }
+    .topbar-logout {
+      font-family: 'Cinzel', serif;
+      font-size: 8px; font-weight: 700;
+      color: var(--l3); background: none;
+      border: 1px solid rgba(120,90,40,0.5);
+      padding: 5px 10px; cursor: pointer;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      transition: all 0.12s;
+    }
+    .topbar-logout:active { color: var(--red-light); border-color: var(--red-light); }
+
     /* ── Flash overlay ── */
     #flashOverlay { position: fixed; inset: 0; pointer-events: none; z-index: 9998; opacity: 0; }
     #flashOverlay.active { animation: screenFlash 0.4s ease-out forwards; }
@@ -53,16 +167,12 @@
     }
 
     /* ── Decorative divider ── */
-    .lol-divider {
-      display: flex; align-items: center; gap: 8px; margin: 4px 0;
-    }
+    .lol-divider { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
     .lol-divider::before, .lol-divider::after {
       content: ''; flex: 1; height: 1px;
       background: linear-gradient(90deg, transparent, var(--sep));
     }
-    .lol-divider::after {
-      background: linear-gradient(90deg, var(--sep), transparent);
-    }
+    .lol-divider::after { background: linear-gradient(90deg, var(--sep), transparent); }
     .lol-divider span { color: var(--gold); font-size: 10px; flex-shrink: 0; }
 
     /* ── Panel card ── */
@@ -85,31 +195,9 @@
       100% { box-shadow: none; }
     }
 
-    /* ── Corner ornaments ── */
-    .card-ornament {
-      position: relative;
-    }
-    .card-ornament::before,
-    .card-ornament::after {
-      content: '';
-      position: absolute;
-      width: 8px; height: 8px;
-      border-color: var(--gold);
-      border-style: solid;
-    }
-    .card-ornament::before {
-      top: -1px; left: -1px;
-      border-width: 2px 0 0 2px;
-    }
-    .card-ornament::after {
-      bottom: -1px; right: -1px;
-      border-width: 0 2px 2px 0;
-    }
-
     /* ── Inputs ── */
     input[type="number"] {
-      background: var(--s3);
-      color: var(--label);
+      background: var(--s3); color: var(--label);
       border: none; outline: none;
       font-family: 'Cinzel', serif;
       font-size: 16px; font-weight: 600;
@@ -127,44 +215,32 @@
 
     /* ── Stepper buttons ── */
     .step-btn {
-      background: var(--s3);
-      color: var(--gold);
-      border: none; border-color: var(--sep);
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      background: var(--s3); color: var(--gold);
+      border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
       user-select: none; touch-action: manipulation;
       font-size: 20px; font-weight: 700;
       min-width: 44px; height: 44px;
-      transition: background 0.1s, color 0.1s;
-      font-family: serif;
+      transition: background 0.1s, color 0.1s; font-family: serif;
     }
     .step-btn:active { background: rgba(200,155,60,0.15); color: var(--gold-hi); }
 
-    /* ── Primary button ── */
+    /* ── Primary log button ── */
     #mainLogBtn {
       width: 100%; padding: 15px;
       background: linear-gradient(180deg, #1a3a5c 0%, #0e2440 100%);
-      color: var(--gold-hi);
-      border: 1px solid var(--gold);
-      font-family: 'Cinzel', serif;
-      font-size: 14px; font-weight: 700;
-      cursor: pointer;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      touch-action: manipulation;
-      transition: all 0.15s;
-      position: relative;
+      color: var(--gold-hi); border: 1px solid var(--gold);
+      font-family: 'Cinzel', serif; font-size: 14px; font-weight: 700;
+      cursor: pointer; letter-spacing: 0.2em; text-transform: uppercase;
+      touch-action: manipulation; transition: all 0.15s; position: relative;
       clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
     }
     #mainLogBtn::before {
-      content: '';
-      position: absolute; inset: 0;
+      content: ''; position: absolute; inset: 0;
       background: linear-gradient(180deg, rgba(11,196,227,0.08) 0%, transparent 100%);
       pointer-events: none;
     }
-    #mainLogBtn:active {
-      background: linear-gradient(180deg, #0d2035 0%, #060f1c 100%);
-      box-shadow: 0 0 16px rgba(200,155,60,0.3);
-    }
+    #mainLogBtn:active { background: linear-gradient(180deg, #0d2035 0%, #060f1c 100%); box-shadow: 0 0 16px rgba(200,155,60,0.3); }
     #mainLogBtn.success { animation: btnSuccess 1.6s ease-out forwards; }
     @keyframes btnSuccess {
       0%   { border-color: var(--green); color: var(--green); box-shadow: 0 0 20px rgba(0,199,129,0.4); }
@@ -172,33 +248,27 @@
       100% { border-color: var(--gold); color: var(--gold-hi); box-shadow: none; }
     }
 
-    /* ── Week count badge ── */
+    /* ── Week count ── */
     #weekCount {
-      font-size: 42px; font-weight: 900;
-      color: transparent;
+      font-size: 42px; font-weight: 900; color: transparent;
       background: linear-gradient(180deg, #F0E6D3 0%, #C89B3C 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      line-height: 1;
-      letter-spacing: -2px;
-      font-family: 'Cinzel', serif;
+      -webkit-background-clip: text; background-clip: text;
+      line-height: 1; letter-spacing: -2px; font-family: 'Cinzel', serif;
     }
 
     /* ── Heatmap ── */
     .hm-day { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; }
     .hm-label { font-size: 9px; font-weight: 700; color: var(--l3); letter-spacing: 0.1em; font-family: 'Cinzel', serif; }
     .hm-dot {
-      width: 30px; height: 30px;
-      background: var(--s2);
+      width: 30px; height: 30px; background: var(--s2);
       border: 1px solid var(--sep);
       display: flex; align-items: center; justify-content: center;
-      font-size: 11px; color: transparent;
-      transition: all 0.3s;
+      font-size: 11px; color: transparent; transition: all 0.3s;
       clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     }
-    .hm-day.active   .hm-label { color: var(--gold); }
-    .hm-day.active   .hm-dot   { background: var(--gold); color: var(--bg); border-color: var(--gold-hi); }
-    .hm-day.today    .hm-label { color: var(--teal); font-weight: 700; }
+    .hm-day.active .hm-label { color: var(--gold); }
+    .hm-day.active .hm-dot   { background: var(--gold); color: var(--bg); border-color: var(--gold-hi); }
+    .hm-day.today  .hm-label { color: var(--teal); font-weight: 700; }
     .hm-day.today:not(.active) .hm-dot { background: rgba(11,196,227,0.12); border-color: var(--teal); box-shadow: 0 0 8px rgba(11,196,227,0.3); }
 
     /* ── Exercise icon tile ── */
@@ -209,51 +279,45 @@
       clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     }
 
-    /* ── Inline action buttons ── */
+    /* ── Action buttons ── */
     .btn-edit {
-      font-family: 'Cinzel', serif;
-      font-size: 10px; font-weight: 700;
-      color: var(--teal);
-      background: rgba(11,196,227,0.08);
-      border: 1px solid rgba(11,196,227,0.3);
-      padding: 5px 12px;
-      cursor: pointer;
-      transition: all 0.12s;
-      touch-action: manipulation;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+      font-family: 'Cinzel', serif; font-size: 10px; font-weight: 700;
+      color: var(--teal); background: rgba(11,196,227,0.08);
+      border: 1px solid rgba(11,196,227,0.3); padding: 5px 12px;
+      cursor: pointer; transition: all 0.12s; touch-action: manipulation;
+      letter-spacing: 0.1em; text-transform: uppercase;
     }
     .btn-edit:active { background: rgba(11,196,227,0.2); }
 
     .btn-del {
-      font-family: 'Cinzel', serif;
-      font-size: 10px; font-weight: 700;
-      color: var(--red-light);
-      background: rgba(200,41,28,0.1);
-      border: 1px solid rgba(200,41,28,0.3);
-      padding: 5px 12px;
-      cursor: pointer;
-      transition: all 0.12s;
-      touch-action: manipulation;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+      font-family: 'Cinzel', serif; font-size: 10px; font-weight: 700;
+      color: var(--red-light); background: rgba(200,41,28,0.1);
+      border: 1px solid rgba(200,41,28,0.3); padding: 5px 12px;
+      cursor: pointer; transition: all 0.12s; touch-action: manipulation;
+      letter-spacing: 0.1em; text-transform: uppercase;
     }
     .btn-del:active { background: rgba(200,41,28,0.2); }
     .btn-del.confirm { background: var(--red); color: var(--label); border-color: var(--red-light); }
 
-    /* ── History card ── */
+    /* ── History / friend card ── */
     .history-card {
-      background: var(--s2);
-      border: 1px solid var(--sep);
-      padding: 14px;
-      position: relative;
+      background: var(--s2); border: 1px solid var(--sep); padding: 14px; position: relative;
     }
     .history-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0;
+      content: ''; position: absolute; top: 0; left: 0;
       width: 3px; height: 100%;
       background: linear-gradient(180deg, var(--gold), transparent);
+    }
+    .history-card.mine { border-color: var(--gold); }
+    .history-card.mine::before { background: linear-gradient(180deg, var(--teal), transparent); }
+
+    /* ── Friend avatar ── */
+    .friend-avatar {
+      width: 36px; height: 36px; flex-shrink: 0;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cinzel', serif; font-weight: 900; font-size: 13px;
+      color: #010A13;
     }
 
     /* ── BOTTOM NAV ── */
@@ -261,31 +325,34 @@
       position: fixed; bottom: 0; left: 0; right: 0;
       background: rgba(1,10,19,0.96);
       border-top: 1px solid var(--sep);
-      display: flex;
-      padding-bottom: env(safe-area-inset-bottom);
-      z-index: 500;
+      display: flex; padding-bottom: env(safe-area-inset-bottom); z-index: 500;
     }
     .nav-tab {
       flex: 1; display: flex; flex-direction: column; align-items: center;
       justify-content: center; gap: 4px; padding: 10px 0;
-      color: var(--l3);
-      background: transparent; border: none;
-      font-family: 'Cinzel', serif;
-      font-size: 9px; font-weight: 700;
-      cursor: pointer; transition: color 0.18s;
-      touch-action: manipulation;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
+      color: var(--l3); background: transparent; border: none;
+      font-family: 'Cinzel', serif; font-size: 9px; font-weight: 700;
+      cursor: pointer; transition: color 0.18s; touch-action: manipulation;
+      letter-spacing: 0.15em; text-transform: uppercase;
     }
     .nav-tab svg { width: 22px; height: 22px; }
     .nav-tab.active { color: var(--gold); }
     .nav-tab.active svg { filter: drop-shadow(0 0 4px rgba(200,155,60,0.6)); }
 
-    /* ── CALENDAR ── */
-    .cal-dow {
-      display: grid; grid-template-columns: repeat(7,1fr);
-      margin-bottom: 6px;
+    /* ── Title ── */
+    .lol-title {
+      font-family: 'Cinzel', serif; font-size: 30px; font-weight: 900;
+      letter-spacing: 0.05em; line-height: 1.05;
+      background: linear-gradient(180deg, #F0E6D3 0%, #C89B3C 60%, #785A28 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
     }
+    .lol-subtitle {
+      font-size: 10px; color: var(--l3); letter-spacing: 0.3em;
+      text-transform: uppercase; font-family: 'Cinzel', serif; margin-top: 4px;
+    }
+
+    /* ── CALENDAR ── */
+    .cal-dow { display: grid; grid-template-columns: repeat(7,1fr); margin-bottom: 6px; }
     .cal-dow span {
       text-align: center; font-size: 10px; font-weight: 700;
       color: var(--l3); padding: 4px 0;
@@ -293,8 +360,7 @@
     }
     #calGrid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
     .cal-cell {
-      aspect-ratio: 1;
-      display: flex; flex-direction: column;
+      aspect-ratio: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       cursor: pointer; transition: all 0.14s;
       touch-action: manipulation; user-select: none; position: relative;
@@ -322,17 +388,14 @@
     }
     #editModal.open { display: flex; }
     .modal-sheet {
-      width: 100%;
-      background: var(--s1);
+      width: 100%; background: var(--s1);
       border-top: 1px solid var(--gold);
       max-height: 90vh; overflow-y: auto;
       padding-bottom: env(safe-area-inset-bottom);
-      animation: slideUp 0.3s cubic-bezier(0.22,1,0.36,1);
-      position: relative;
+      animation: slideUp 0.3s cubic-bezier(0.22,1,0.36,1); position: relative;
     }
     .modal-sheet::before {
-      content: '';
-      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
       background: linear-gradient(90deg, transparent, var(--gold-hi), transparent);
     }
     @keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
@@ -340,215 +403,269 @@
 
     .modal-primary-btn {
       width: 100%; padding: 14px; border: none;
-      font-family: 'Cinzel', serif;
-      font-size: 12px; font-weight: 700;
-      cursor: pointer; transition: all 0.15s;
-      touch-action: manipulation;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      position: relative;
+      font-family: 'Cinzel', serif; font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: all 0.15s; touch-action: manipulation;
+      letter-spacing: 0.18em; text-transform: uppercase; position: relative;
     }
     .modal-primary-btn.save {
       background: linear-gradient(180deg, #1a3a5c 0%, #0e2440 100%);
-      color: var(--gold-hi);
-      border: 1px solid var(--gold);
+      color: var(--gold-hi); border: 1px solid var(--gold);
       clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
     }
     .modal-primary-btn.save:active { background: #0d2035; box-shadow: 0 0 12px rgba(200,155,60,0.3); }
-    .modal-primary-btn.cancel {
-      background: transparent;
-      color: var(--l2);
-      border: 1px solid var(--sep);
-    }
+    .modal-primary-btn.cancel { background: transparent; color: var(--l2); border: 1px solid var(--sep); }
     .modal-primary-btn.cancel:active { background: rgba(200,155,60,0.05); }
-    .modal-primary-btn.delete {
-      background: transparent;
-      color: var(--red-light);
-      border: 1px solid rgba(200,41,28,0.4);
-    }
+    .modal-primary-btn.delete { background: transparent; color: var(--red-light); border: 1px solid rgba(200,41,28,0.4); }
     .modal-primary-btn.delete:active { background: rgba(200,41,28,0.1); }
-    .modal-primary-btn.delete.confirm {
-      background: var(--red);
-      color: var(--label);
-      border-color: var(--red-light);
-    }
+    .modal-primary-btn.delete.confirm { background: var(--red); color: var(--label); border-color: var(--red-light); }
 
-    /* ── Title styling ── */
-    .lol-title {
-      font-family: 'Cinzel', serif;
-      font-size: 30px; font-weight: 900;
-      letter-spacing: 0.05em;
-      line-height: 1.05;
-      background: linear-gradient(180deg, #F0E6D3 0%, #C89B3C 60%, #785A28 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
-
-    .lol-subtitle {
-      font-size: 10px;
-      color: var(--l3);
-      letter-spacing: 0.3em;
-      text-transform: uppercase;
-      font-family: 'Cinzel', serif;
-      margin-top: 4px;
-    }
-
-    /* ── Scrollbar ── */
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--sep); }
-
-    /* ── Month nav buttons ── */
     .month-nav-btn {
-      background: var(--s2);
-      border: 1px solid var(--sep);
-      color: var(--gold);
-      width: 36px; height: 36px;
-      font-size: 18px; cursor: pointer;
+      background: var(--s2); border: 1px solid var(--sep); color: var(--gold);
+      width: 36px; height: 36px; font-size: 18px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      touch-action: manipulation;
-      transition: all 0.14s;
+      touch-action: manipulation; transition: all 0.14s;
     }
     .month-nav-btn:active { background: rgba(200,155,60,0.15); }
 
-    /* ── History toggle ── */
     .history-toggle-btn {
-      font-size: 10px; font-weight: 700;
-      color: var(--gold);
-      background: none; border: none;
-      cursor: pointer;
-      font-family: 'Cinzel', serif;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
+      font-size: 10px; font-weight: 700; color: var(--gold);
+      background: none; border: none; cursor: pointer;
+      font-family: 'Cinzel', serif; letter-spacing: 0.15em; text-transform: uppercase;
     }
+
+    /* ── Loading spinner ── */
+    .loading-dot {
+      display: inline-block; width: 6px; height: 6px;
+      background: var(--gold); border-radius: 50%; margin: 0 2px;
+      animation: dotPulse 1.2s ease-in-out infinite;
+    }
+    .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dotPulse { 0%,80%,100% { opacity: 0.2; transform: scale(0.7); } 40% { opacity: 1; transform: scale(1); } }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--sep); }
   </style>
 </head>
 <body>
-  <div id="flashOverlay"></div>
 
-  <!-- ══════════════════ LOG VIEW ══════════════════ -->
-  <div id="viewLog">
-
-    <header style="padding: 52px 20px 16px;">
-      <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px;">
-        <div>
-          <div class="lol-title">Swollmeter</div>
-          <div class="lol-subtitle">Gym Progress Tracker</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:9px; font-weight:700; color:var(--l3); text-transform:uppercase; letter-spacing:0.2em; font-family:'Cinzel',serif;">This Week</div>
-          <div id="weekCount">0</div>
-        </div>
-      </div>
-
-      <!-- Decorative divider -->
-      <div class="lol-divider" style="margin-bottom:14px;"><span>◆</span></div>
-
-      <!-- Heatmap -->
-      <div id="heatmap" style="display:flex; gap:4px;"></div>
-    </header>
-
-    <div style="padding: 8px 20px 0;">
-      <div class="section-label">◆ &nbsp;Exercises</div>
-      <div id="exerciseList" style="display:flex; flex-direction:column; gap:10px;"></div>
+  <!-- ══════════════════ LOGIN SCREEN ══════════════════ -->
+  <div id="loginScreen">
+    <div style="text-align:center; margin-bottom:36px;">
+      <div class="lol-title" style="font-size:38px;">Swollmeter</div>
+      <div class="lol-subtitle" style="margin-top:6px;">Gym Progress Tracker</div>
     </div>
 
-    <div style="padding: 20px 20px 0;">
-      <button id="mainLogBtn" onclick="logSession()">Log Session</button>
-    </div>
+    <div class="login-card">
+      <div class="corner-br"></div>
 
-    <div style="padding: 28px 20px 0;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <span class="section-label" style="margin:0;">◆ &nbsp;Recent Sessions</span>
-        <button id="historyToggle" onclick="toggleHistory()" class="history-toggle-btn">Show</button>
+      <div class="lol-divider" style="margin-bottom:24px;"><span>◆</span></div>
+
+      <div style="font-size:9px; font-weight:700; color:var(--l3); letter-spacing:0.25em; text-transform:uppercase; font-family:'Cinzel',serif; margin-bottom:10px;">
+        Summoner Name
       </div>
-      <div id="historyPanel" style="display:none; flex-direction:column; gap:8px;"></div>
+
+      <input type="text" id="usernameInput" class="login-input"
+        placeholder="Enter your username..."
+        maxlength="20"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+        onkeydown="if(event.key==='Enter')doLogin()">
+
+      <div id="loginError" style="font-size:10px; color:var(--red-light); font-family:'Cinzel',serif; letter-spacing:0.08em; min-height:20px; margin-top:8px;"></div>
+
+      <button class="login-btn" id="loginBtn" onclick="doLogin()" style="margin-top:8px;">
+        Enter the Rift
+      </button>
+
+      <div class="lol-divider" style="margin-top:24px;"><span>◆</span></div>
+
+      <div style="font-size:9px; color:var(--l3); text-align:center; margin-top:14px; font-family:'Cinzel',serif; letter-spacing:0.12em; line-height:1.7;">
+        New summoners are auto-registered<br>All summoners are allies
+      </div>
     </div>
   </div>
 
-  <!-- ══════════════════ CALENDAR VIEW ══════════════════ -->
-  <div id="viewCalendar" style="display:none;">
-    <header style="padding: 52px 20px 16px;">
-      <div class="lol-title" style="font-size:26px; margin-bottom:3px;">Calendar</div>
-      <div class="lol-subtitle">Session History</div>
-      <div class="lol-divider" style="margin-top:14px;"><span>◆</span></div>
-    </header>
+  <!-- ══════════════════ MAIN APP ══════════════════ -->
+  <div id="mainApp" style="display:none;">
 
-    <div style="padding: 0 20px;">
-      <!-- Month nav -->
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-        <button onclick="shiftMonth(-1)" class="month-nav-btn">‹</button>
-        <span id="calMonthLabel" style="font-size:14px; font-weight:700; letter-spacing:0.15em; font-family:'Cinzel',serif; color:var(--l2);"></span>
-        <button onclick="shiftMonth(1)" class="month-nav-btn">›</button>
+    <!-- Fixed top bar -->
+    <div id="topBar">
+      <div class="topbar-user">
+        <div class="topbar-avatar" id="topBarAvatar"></div>
+        <span class="topbar-name" id="topBarName"></span>
       </div>
-      <div class="cal-dow">
-        <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
-      </div>
-      <div id="calGrid"></div>
-      <div id="dayPanel" style="margin-top:16px;"></div>
+      <button class="topbar-logout" onclick="doLogout()">Logout</button>
     </div>
-  </div>
 
-  <!-- ══════════════════ BOTTOM NAV ══════════════════ -->
-  <nav id="bottomNav">
-    <button class="nav-tab active" id="tab-log" onclick="setView('log')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="4.5" y="9" width="3" height="6" rx="1.2"/>
-        <rect x="16.5" y="9" width="3" height="6" rx="1.2"/>
-        <line x1="7.5" y1="12" x2="16.5" y2="12" stroke-width="2.2"/>
-        <line x1="2.5" y1="10.5" x2="4.5" y2="10.5" stroke-width="2.2"/>
-        <line x1="2.5" y1="13.5" x2="4.5" y2="13.5" stroke-width="2.2"/>
-        <line x1="19.5" y1="10.5" x2="21.5" y2="10.5" stroke-width="2.2"/>
-        <line x1="19.5" y1="13.5" x2="21.5" y2="13.5" stroke-width="2.2"/>
-      </svg>
-      Log
-    </button>
-    <button class="nav-tab" id="tab-calendar" onclick="setView('calendar')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="3.5"/>
-        <line x1="3" y1="10" x2="21" y2="10"/>
-        <line x1="8" y1="2" x2="8" y2="6"/>
-        <line x1="16" y1="2" x2="16" y2="6"/>
-        <circle cx="8"  cy="15" r="1.1" fill="currentColor" stroke="none"/>
-        <circle cx="12" cy="15" r="1.1" fill="currentColor" stroke="none"/>
-        <circle cx="16" cy="15" r="1.1" fill="currentColor" stroke="none"/>
-      </svg>
-      Calendar
-    </button>
-  </nav>
+    <div id="flashOverlay"></div>
 
-  <!-- ══════════════════ EDIT MODAL ══════════════════ -->
-  <div id="editModal" onclick="if(event.target===this)closeEdit()">
-    <div class="modal-sheet">
-      <div class="modal-handle"></div>
-
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; padding: 18px 20px 14px;">
-        <div>
-          <div style="font-size:16px; font-weight:700; letter-spacing:0.1em; font-family:'Cinzel',serif; color:var(--l2);">Edit Session</div>
-          <div id="editDateLabel" style="font-size:11px; color:var(--l3); margin-top:4px; font-family:'Cinzel',serif; letter-spacing:0.05em;"></div>
+    <!-- ── LOG VIEW ── -->
+    <div id="viewLog">
+      <header style="padding: calc(var(--topbar-h) + env(safe-area-inset-top) + 20px) 20px 16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px;">
+          <div>
+            <div class="lol-title">Swollmeter</div>
+            <div class="lol-subtitle">Gym Progress Tracker</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:9px; font-weight:700; color:var(--l3); text-transform:uppercase; letter-spacing:0.2em; font-family:'Cinzel',serif;">This Week</div>
+            <div id="weekCount">0</div>
+          </div>
         </div>
-        <button onclick="closeEdit()"
-          style="width:30px; height:30px; background:var(--s2); border:1px solid var(--sep);
-                 color:var(--l2); font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:serif;">✕</button>
+        <div class="lol-divider" style="margin-bottom:14px;"><span>◆</span></div>
+        <div id="heatmap" style="display:flex; gap:4px;"></div>
+      </header>
+
+      <div style="padding: 8px 20px 0;">
+        <div class="section-label">◆ &nbsp;Exercises</div>
+        <div id="exerciseList" style="display:flex; flex-direction:column; gap:10px;"></div>
       </div>
 
-      <div style="height:1px; background:linear-gradient(90deg,transparent,var(--sep),transparent); margin:0 20px;"></div>
+      <div style="padding: 20px 20px 0;">
+        <button id="mainLogBtn" onclick="logSession()">Log Session</button>
+      </div>
 
-      <div id="editExercises" style="padding:16px 20px; display:flex; flex-direction:column; gap:16px;"></div>
-
-      <div style="padding:0 20px 20px; display:flex; flex-direction:column; gap:10px;">
-        <button class="modal-primary-btn save" onclick="saveEdit()">Save Changes</button>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-          <button id="deleteBtn" class="modal-primary-btn delete" onclick="deleteSessionById()">Delete</button>
-          <button class="modal-primary-btn cancel" onclick="closeEdit()">Cancel</button>
+      <div style="padding: 28px 20px 0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span class="section-label" style="margin:0;">◆ &nbsp;My Sessions</span>
+          <button id="historyToggle" onclick="toggleHistory()" class="history-toggle-btn">Show</button>
         </div>
+        <div id="historyPanel" style="display:none; flex-direction:column; gap:8px;"></div>
       </div>
     </div>
-  </div>
+
+    <!-- ── CALENDAR VIEW ── -->
+    <div id="viewCalendar" style="display:none;">
+      <header style="padding: calc(var(--topbar-h) + env(safe-area-inset-top) + 20px) 20px 16px;">
+        <div class="lol-title" style="font-size:26px; margin-bottom:3px;">Calendar</div>
+        <div class="lol-subtitle">My Session History</div>
+        <div class="lol-divider" style="margin-top:14px;"><span>◆</span></div>
+      </header>
+      <div style="padding: 0 20px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+          <button onclick="shiftMonth(-1)" class="month-nav-btn">‹</button>
+          <span id="calMonthLabel" style="font-size:14px; font-weight:700; letter-spacing:0.15em; font-family:'Cinzel',serif; color:var(--l2);"></span>
+          <button onclick="shiftMonth(1)" class="month-nav-btn">›</button>
+        </div>
+        <div class="cal-dow">
+          <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+        </div>
+        <div id="calGrid"></div>
+        <div id="dayPanel" style="margin-top:16px;"></div>
+      </div>
+    </div>
+
+    <!-- ── FRIENDS VIEW ── -->
+    <div id="viewFriends" style="display:none;">
+      <header style="padding: calc(var(--topbar-h) + env(safe-area-inset-top) + 20px) 20px 16px;">
+        <div class="lol-title" style="font-size:26px; margin-bottom:3px;">Allies</div>
+        <div class="lol-subtitle">All Summoners · Live Feed</div>
+        <div class="lol-divider" style="margin-top:14px;"><span>◆</span></div>
+      </header>
+      <div style="padding: 0 20px;">
+        <div id="friendsFeed" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+    </div>
+
+    <!-- ── BOTTOM NAV ── -->
+    <nav id="bottomNav">
+      <button class="nav-tab active" id="tab-log" onclick="setView('log')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4.5" y="9" width="3" height="6" rx="1.2"/>
+          <rect x="16.5" y="9" width="3" height="6" rx="1.2"/>
+          <line x1="7.5" y1="12" x2="16.5" y2="12" stroke-width="2.2"/>
+          <line x1="2.5" y1="10.5" x2="4.5" y2="10.5" stroke-width="2.2"/>
+          <line x1="2.5" y1="13.5" x2="4.5" y2="13.5" stroke-width="2.2"/>
+          <line x1="19.5" y1="10.5" x2="21.5" y2="10.5" stroke-width="2.2"/>
+          <line x1="19.5" y1="13.5" x2="21.5" y2="13.5" stroke-width="2.2"/>
+        </svg>
+        Log
+      </button>
+      <button class="nav-tab" id="tab-calendar" onclick="setView('calendar')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="3.5"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <circle cx="8"  cy="15" r="1.1" fill="currentColor" stroke="none"/>
+          <circle cx="12" cy="15" r="1.1" fill="currentColor" stroke="none"/>
+          <circle cx="16" cy="15" r="1.1" fill="currentColor" stroke="none"/>
+        </svg>
+        Calendar
+      </button>
+      <button class="nav-tab" id="tab-friends" onclick="setView('friends')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="9" cy="7" r="3"/>
+          <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          <path d="M21 21v-2a4 4 0 0 0-3-3.85"/>
+        </svg>
+        Allies
+      </button>
+    </nav>
+
+    <!-- ── EDIT MODAL ── -->
+    <div id="editModal" onclick="if(event.target===this)closeEdit()">
+      <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; padding: 18px 20px 14px;">
+          <div>
+            <div style="font-size:16px; font-weight:700; letter-spacing:0.1em; font-family:'Cinzel',serif; color:var(--l2);">Edit Session</div>
+            <div id="editDateLabel" style="font-size:11px; color:var(--l3); margin-top:4px; font-family:'Cinzel',serif; letter-spacing:0.05em;"></div>
+          </div>
+          <button onclick="closeEdit()"
+            style="width:30px; height:30px; background:var(--s2); border:1px solid var(--sep);
+                   color:var(--l2); font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:serif;">✕</button>
+        </div>
+        <div style="height:1px; background:linear-gradient(90deg,transparent,var(--sep),transparent); margin:0 20px;"></div>
+        <div id="editExercises" style="padding:16px 20px; display:flex; flex-direction:column; gap:16px;"></div>
+        <div style="padding:0 20px 20px; display:flex; flex-direction:column; gap:10px;">
+          <button class="modal-primary-btn save" onclick="saveEdit()">Save Changes</button>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <button id="deleteBtn" class="modal-primary-btn delete" onclick="deleteSessionById()">Delete</button>
+            <button class="modal-primary-btn cancel" onclick="closeEdit()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /mainApp -->
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
   <script>
-  // ── Config ────────────────────────────────────────────────────────────────
+  // ╔══════════════════════════════════════════════════════════════════╗
+  // ║  FIREBASE CONFIG — paste your project config here               ║
+  // ║                                                                  ║
+  // ║  Steps:                                                          ║
+  // ║  1. Go to https://console.firebase.google.com                   ║
+  // ║  2. Create project → Add web app → copy the config object       ║
+  // ║  3. Build → Realtime Database → Create database (test mode)     ║
+  // ║  4. Replace the values below                                     ║
+  // ╚══════════════════════════════════════════════════════════════════╝
+  const FIREBASE_CONFIG = {
+    apiKey:            "YOUR_API_KEY",
+    authDomain:        "YOUR_PROJECT.firebaseapp.com",
+    databaseURL:       "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+    projectId:         "YOUR_PROJECT",
+    storageBucket:     "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId:             "YOUR_APP_ID"
+  };
+
+  // ── Init Firebase ─────────────────────────────────────────────────────────
+  let db;
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+  } catch(e) {
+    console.error('Firebase init failed:', e);
+  }
+
+  // ── Constants ─────────────────────────────────────────────────────────────
   const EXERCISES = [
     { name:'Chest Press',    emoji:'🏋️', bg:'linear-gradient(135deg,#8B2500,#C84B00)', weightStep:5,  repsStep:1 },
     { name:'Seated Row',     emoji:'🚣', bg:'linear-gradient(135deg,#0A3A5C,#0BC4E3)', weightStep:5,  repsStep:1 },
@@ -558,10 +675,14 @@
   ];
   const MONTH_NAMES = ['January','February','March','April','May','June',
                        'July','August','September','October','November','December'];
-  const KEY = 'swollmeter_v2';
+  const USER_KEY    = 'swollmeter_user';
+  // Gold palette for user avatars (cycled via username hash)
+  const AVATAR_COLORS = ['#C89B3C','#0BC4E3','#00C781','#E84545','#AF52DE','#E67E22','#3498DB','#F39C12'];
 
   // ── State ─────────────────────────────────────────────────────────────────
-  let sessions      = JSON.parse(localStorage.getItem(KEY) || '[]');
+  let currentUser   = null;
+  let sessions      = [];      // current user's sessions
+  let allSessions   = [];      // everyone's sessions (friends feed)
   let currentView   = 'log';
   let calYear       = new Date().getFullYear();
   let calMonth      = new Date().getMonth();
@@ -569,22 +690,17 @@
   let editId        = null;
   let deletePending = false;
   let historyOpen   = false;
-
-  function save() { localStorage.setItem(KEY, JSON.stringify(sessions)); }
+  let friendsListening = false;
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-  function getLastEntry(name) {
-    for (let i = sessions.length - 1; i >= 0; i--) {
-      const e = sessions[i].entries[name];
-      if (e && (e.weight > 0 || e.reps > 0)) return e;
-    }
-    return null;
+  function usernameColor(name) {
+    let h = 0;
+    for (let c of name) h = (h * 31 + c.charCodeAt(0)) % AVATAR_COLORS.length;
+    return AVATAR_COLORS[Math.abs(h)];
   }
 
-  function getWeekSessions() {
-    const now = new Date(), sow = new Date(now);
-    sow.setDate(now.getDate() - now.getDay()); sow.setHours(0,0,0,0);
-    return sessions.filter(s => new Date(s.date) >= sow);
+  function sanitizeUsername(raw) {
+    return raw.trim().replace(/[.#$[\]/]/g, '').toLowerCase().slice(0, 20);
   }
 
   function flash(color = 'rgba(200,155,60,0.1)') {
@@ -593,24 +709,144 @@
     ov.classList.remove('active'); void ov.offsetWidth; ov.classList.add('active');
   }
 
-  // ── View ──────────────────────────────────────────────────────────────────
+  function showLoginError(msg) {
+    const el = document.getElementById('loginError');
+    el.textContent = msg;
+    setTimeout(() => { el.textContent = ''; }, 3000);
+  }
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  async function doLogin() {
+    if (!db) { showLoginError('Firebase not configured — see code comments.'); return; }
+    const raw = document.getElementById('usernameInput').value;
+    const username = sanitizeUsername(raw);
+    if (!username) { showLoginError('Enter a valid summoner name.'); return; }
+
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>';
+
+    try {
+      const snap = await db.ref(`users/${username}`).once('value');
+      if (!snap.exists()) {
+        await db.ref(`users/${username}`).set({ username, joinedAt: Date.now() });
+      }
+      await db.ref(`users/${username}/lastSeen`).set(Date.now());
+
+      currentUser = username;
+      localStorage.setItem(USER_KEY, username);
+      enterApp();
+    } catch(e) {
+      console.error(e);
+      showLoginError('Connection error. Check Firebase config.');
+      btn.disabled = false;
+      btn.textContent = 'Enter the Rift';
+    }
+  }
+
+  function doLogout() {
+    // Detach listeners
+    if (currentUser) {
+      db.ref('sessions').orderByChild('username').equalTo(currentUser).off();
+    }
+    db.ref('sessions').off();
+    friendsListening = false;
+    currentUser = null;
+    sessions = [];
+    allSessions = [];
+    historyOpen = false;
+    localStorage.removeItem(USER_KEY);
+
+    document.getElementById('mainApp').style.display = 'none';
+    document.getElementById('loginScreen').style.display = '';
+    document.getElementById('usernameInput').value = '';
+    document.getElementById('loginBtn').disabled = false;
+    document.getElementById('loginBtn').textContent = 'Enter the Rift';
+  }
+
+  function enterApp() {
+    // Update top bar
+    const color   = usernameColor(currentUser);
+    const initial = currentUser[0].toUpperCase();
+    const av = document.getElementById('topBarAvatar');
+    av.style.background = color;
+    av.textContent = initial;
+    document.getElementById('topBarName').textContent = currentUser;
+
+    // Show app, hide login
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = '';
+
+    // Start listening to current user's sessions (real-time)
+    startUserSessionsListener();
+
+    setView('log');
+  }
+
+  // ── Real-time listeners ───────────────────────────────────────────────────
+  function startUserSessionsListener() {
+    db.ref('sessions').orderByChild('username').equalTo(currentUser)
+      .on('value', snap => {
+        sessions = [];
+        snap.forEach(child => sessions.push(child.val()));
+        sessions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        if (currentView === 'log') {
+          renderHeatmap(); renderExercises();
+          if (historyOpen) renderHistory();
+        }
+        if (currentView === 'calendar') renderCalendar();
+      });
+  }
+
+  function startFriendsListener() {
+    if (friendsListening) return;
+    friendsListening = true;
+    db.ref('sessions').orderByChild('date').limitToLast(100)
+      .on('value', snap => {
+        allSessions = [];
+        snap.forEach(child => allSessions.push(child.val()));
+        allSessions.reverse(); // most recent first
+        if (currentView === 'friends') renderFriends();
+      });
+  }
+
+  // ── DB writes ─────────────────────────────────────────────────────────────
+  function dbSaveSession(session) {
+    return db.ref(`sessions/${session.id}`).set({ ...session, username: currentUser });
+  }
+
+  function dbDeleteSession(sessionId) {
+    return db.ref(`sessions/${sessionId}`).remove();
+  }
+
+  function dbUpdateEntries(sessionId, entries) {
+    return db.ref(`sessions/${sessionId}/entries`).set(entries);
+  }
+
+  // ── View routing ──────────────────────────────────────────────────────────
   function setView(v) {
     currentView = v;
-    document.getElementById('viewLog').style.display      = v==='log'      ? '' : 'none';
-    document.getElementById('viewCalendar').style.display = v==='calendar' ? '' : 'none';
-    document.getElementById('tab-log').classList.toggle('active',      v==='log');
-    document.getElementById('tab-calendar').classList.toggle('active', v==='calendar');
+    document.getElementById('viewLog').style.display      = v === 'log'      ? '' : 'none';
+    document.getElementById('viewCalendar').style.display = v === 'calendar' ? '' : 'none';
+    document.getElementById('viewFriends').style.display  = v === 'friends'  ? '' : 'none';
+    ['log','calendar','friends'].forEach(t =>
+      document.getElementById(`tab-${t}`).classList.toggle('active', v === t));
+
     if (v === 'calendar') renderCalendar();
+    if (v === 'friends')  { startFriendsListener(); renderFriends(); }
   }
 
   // ── Heatmap ───────────────────────────────────────────────────────────────
   function renderHeatmap() {
     const el    = document.getElementById('heatmap');
     const today = new Date().getDay();
-    const week  = getWeekSessions();
+    const now   = new Date();
+    const sow   = new Date(now);
+    sow.setDate(now.getDate() - now.getDay()); sow.setHours(0,0,0,0);
+    const week  = sessions.filter(s => new Date(s.date) >= sow);
     const byDay = {};
     week.forEach(s => { const d = new Date(s.date).getDay(); byDay[d] = (byDay[d]||0)+1; });
-
     el.innerHTML = '';
     ['S','M','T','W','T','F','S'].forEach((label, i) => {
       const isActive = (byDay[i]||0) > 0;
@@ -623,22 +859,28 @@
   }
 
   // ── Exercise cards ────────────────────────────────────────────────────────
+  function getLastEntry(name) {
+    for (let i = sessions.length - 1; i >= 0; i--) {
+      const e = sessions[i].entries[name];
+      if (e && (e.weight > 0 || e.reps > 0)) return e;
+    }
+    return null;
+  }
+
   function renderExercises() {
     const list = document.getElementById('exerciseList');
     list.innerHTML = '';
-
     EXERCISES.forEach(({ name, emoji, bg, weightStep, repsStep }, idx) => {
       const last    = getLastEntry(name);
       const hasLast = last !== null;
-      const card = document.createElement('div');
-      card.className = 'card'; card.id = `card-${idx}`;
-      card.style.padding = '14px';
+      const card    = document.createElement('div');
+      card.className = 'card'; card.id = `card-${idx}`; card.style.padding = '14px';
       card.innerHTML = `
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
           <div class="ex-icon" style="background:${bg};">${emoji}</div>
           <div style="flex:1; min-width:0;">
             <div style="font-size:14px; font-weight:700; letter-spacing:0.08em; font-family:'Cinzel',serif;">${name}</div>
-            <div style="font-size:11px; color:${hasLast ? 'var(--teal)' : 'var(--l3)'}; margin-top:3px; letter-spacing:0.05em; font-family:'Cinzel',serif;">
+            <div style="font-size:11px; color:${hasLast?'var(--teal)':'var(--l3)'}; margin-top:3px; letter-spacing:0.05em; font-family:'Cinzel',serif;">
               ${hasLast ? `Last: ${last.weight} lb &times; ${last.reps} reps` : 'No data yet'}
             </div>
           </div>
@@ -672,7 +914,7 @@
   }
 
   // ── Log session ───────────────────────────────────────────────────────────
-  function logSession() {
+  async function logSession() {
     const entries = {}; let hasData = false;
     EXERCISES.forEach(({ name }, idx) => {
       const w = parseFloat(document.getElementById(`w${idx}`).value)||0;
@@ -682,9 +924,10 @@
     });
     if (!hasData) { flash('rgba(200,41,28,0.1)'); return; }
 
-    sessions.push({ id:Date.now(), date:new Date().toISOString(), entries });
-    save();
+    const session = { id: Date.now(), date: new Date().toISOString(), entries, username: currentUser };
 
+    // Optimistic update
+    sessions.push(session);
     flash('rgba(0,199,129,0.08)');
     EXERCISES.forEach((_, idx) => {
       const card = document.getElementById(`card-${idx}`);
@@ -697,6 +940,10 @@
 
     renderHeatmap(); renderExercises();
     if (historyOpen) renderHistory();
+
+    // Persist to Firebase
+    try { await dbSaveSession(session); }
+    catch(e) { console.error('Save failed:', e); }
   }
 
   // ── History ───────────────────────────────────────────────────────────────
@@ -707,31 +954,49 @@
     if (historyOpen) renderHistory();
   }
 
-  function sessionCardHTML(s) {
+  function sessionCardHTML(s, showUser = false) {
     const d       = new Date(s.date);
     const dateStr = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
     const timeStr = d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
-    const rows    = EXERCISES.map(({ name, emoji }) => {
+    const isMe    = s.username === currentUser;
+
+    const rows = EXERCISES.map(({ name, emoji }) => {
       const e = s.entries[name];
       if (!e || (e.weight===0 && e.reps===0)) return '';
       return `<div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0;">
-        <span style="font-size:12px; color:var(--l2); font-family:'Cinzel',serif; letter-spacing:0.03em;">${emoji}&nbsp; ${name}</span>
+        <span style="font-size:12px; color:var(--l2); font-family:'Cinzel',serif;">${emoji}&nbsp;${name}</span>
         <span style="font-size:12px; font-weight:600; color:var(--teal); font-family:'Cinzel',serif;">${e.weight} lb &times; ${e.reps}</span>
       </div>`;
     }).filter(Boolean).join('');
 
-    return `
-      <div class="history-card">
-        <div style="display:flex; justify-content:space-between; align-items:center; ${rows ? 'margin-bottom:10px;' : ''}">
+    const headerRow = showUser ? (() => {
+      const color = usernameColor(s.username || '?');
+      const initial = (s.username||'?')[0].toUpperCase();
+      return `
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+          <div class="friend-avatar" style="background:${color};">${initial}</div>
           <div>
-            <div style="font-size:13px; font-weight:700; font-family:'Cinzel',serif; color:var(--l2);">${dateStr}</div>
-            <div style="font-size:10px; color:var(--l3); margin-top:2px; font-family:'Cinzel',serif; letter-spacing:0.08em;">${timeStr}</div>
+            <div style="font-size:13px; font-weight:700; font-family:'Cinzel',serif; color:${isMe?'var(--gold)':'var(--l2)'};">
+              ${s.username||'unknown'}${isMe ? '&nbsp;<span style="font-size:9px;color:var(--l3);">(you)</span>' : ''}
+            </div>
+            <div style="font-size:10px; color:var(--l3); font-family:'Cinzel',serif; letter-spacing:0.06em;">${dateStr} · ${timeStr}</div>
           </div>
-          <div style="display:flex; gap:8px; flex-shrink:0;">
-            <button class="btn-del" id="del-${s.id}" onclick="deleteCard(${s.id},this)">Delete</button>
-            <button class="btn-edit" onclick="openEdit(${s.id})">Edit</button>
-          </div>
+        </div>`;
+    })() : `
+      <div style="display:flex; justify-content:space-between; align-items:center; ${rows?'margin-bottom:10px;':''}">
+        <div>
+          <div style="font-size:13px; font-weight:700; font-family:'Cinzel',serif; color:var(--l2);">${dateStr}</div>
+          <div style="font-size:10px; color:var(--l3); margin-top:2px; font-family:'Cinzel',serif; letter-spacing:0.08em;">${timeStr}</div>
         </div>
+        <div style="display:flex; gap:8px; flex-shrink:0;">
+          <button class="btn-del" id="del-${s.id}" onclick="deleteCard(${s.id},this)">Delete</button>
+          <button class="btn-edit" onclick="openEdit(${s.id})">Edit</button>
+        </div>
+      </div>`;
+
+    return `
+      <div class="history-card ${isMe&&showUser?'mine':''}">
+        ${headerRow}
         ${rows ? `<div style="border-top:1px solid rgba(120,90,40,0.4); padding-top:8px;">${rows}</div>` : ''}
       </div>`;
   }
@@ -740,8 +1005,23 @@
     const panel  = document.getElementById('historyPanel');
     const recent = [...sessions].reverse().slice(0, 15);
     panel.innerHTML = recent.length === 0
-      ? '<div style="font-size:13px; color:var(--l3); text-align:center; padding:20px 0; font-family:\'Cinzel\',serif; letter-spacing:0.1em;">No sessions yet</div>'
-      : recent.map(sessionCardHTML).join('');
+      ? `<div style="font-size:13px;color:var(--l3);text-align:center;padding:20px 0;font-family:'Cinzel',serif;letter-spacing:0.1em;">No sessions yet</div>`
+      : recent.map(s => sessionCardHTML(s, false)).join('');
+  }
+
+  // ── Friends feed ──────────────────────────────────────────────────────────
+  function renderFriends() {
+    const feed = document.getElementById('friendsFeed');
+    if (allSessions.length === 0) {
+      feed.innerHTML = `
+        <div style="text-align:center;padding:40px 0;">
+          <div style="font-size:24px;margin-bottom:12px;">⚔️</div>
+          <div style="font-size:13px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.1em;">No allies have trained yet</div>
+          <div style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;margin-top:6px;opacity:0.6;">Be the first to log a session</div>
+        </div>`;
+      return;
+    }
+    feed.innerHTML = allSessions.map(s => sessionCardHTML(s, true)).join('');
   }
 
   // ── Calendar ──────────────────────────────────────────────────────────────
@@ -754,7 +1034,7 @@
 
   function renderCalendar() {
     document.getElementById('calMonthLabel').textContent = `${MONTH_NAMES[calMonth]} ${calYear}`;
-    const now = new Date();
+    const now          = new Date();
     const daysInMonth  = new Date(calYear, calMonth+1, 0).getDate();
     const firstWeekday = new Date(calYear, calMonth, 1).getDay();
     const byDay = {};
@@ -763,7 +1043,6 @@
       if (d.getFullYear()===calYear && d.getMonth()===calMonth)
         byDay[d.getDate()] = (byDay[d.getDate()]||0) + 1;
     });
-
     const grid = document.getElementById('calGrid');
     grid.innerHTML = '';
     for (let i = 0; i < firstWeekday; i++) {
@@ -774,8 +1053,8 @@
       const isSel   = selectedDay && selectedDay.year===calYear && selectedDay.month===calMonth && selectedDay.day===d;
       const el = document.createElement('div');
       el.className = `cal-cell ${byDay[d]?'has-session':''} ${isToday?'is-today':''} ${isSel?'is-selected':''}`;
-      el.innerHTML  = `<span class="cn">${d}</span><span class="cd"></span>`;
-      el.onclick    = () => selectCalDay(calYear, calMonth, d);
+      el.innerHTML = `<span class="cn">${d}</span><span class="cd"></span>`;
+      el.onclick   = () => selectCalDay(calYear, calMonth, d);
       grid.appendChild(el);
     }
     renderDayPanel();
@@ -798,10 +1077,10 @@
     const dateStr = new Date(year, month, day).toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
     panel.innerHTML = `
       <div class="lol-divider" style="margin-bottom:14px;"><span>◆</span></div>
-      <div style="font-size:13px; font-weight:700; color:var(--l2); margin-bottom:12px; font-family:'Cinzel',serif; letter-spacing:0.08em;">${dateStr}</div>
+      <div style="font-size:13px;font-weight:700;color:var(--l2);margin-bottom:12px;font-family:'Cinzel',serif;letter-spacing:0.08em;">${dateStr}</div>
       ${daySessions.length === 0
-        ? `<div style="font-size:13px; color:var(--l3); text-align:center; padding:16px 0; font-family:'Cinzel',serif; letter-spacing:0.1em;">No sessions this day</div>`
-        : `<div style="display:flex; flex-direction:column; gap:8px;">${daySessions.map(sessionCardHTML).join('')}</div>`
+        ? `<div style="font-size:13px;color:var(--l3);text-align:center;padding:16px 0;font-family:'Cinzel',serif;letter-spacing:0.1em;">No sessions this day</div>`
+        : `<div style="display:flex;flex-direction:column;gap:8px;">${daySessions.map(s => sessionCardHTML(s,false)).join('')}</div>`
       }`;
   }
 
@@ -820,22 +1099,22 @@
       const e = session.entries[name] || { weight:0, reps:0 };
       return `
         <div>
-          <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-            <div class="ex-icon" style="background:${bg}; width:32px; height:32px; font-size:16px;">${emoji}</div>
-            <span style="font-size:13px; font-weight:700; font-family:'Cinzel',serif; letter-spacing:0.08em; color:var(--l2);">${name}</span>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div class="ex-icon" style="background:${bg};width:32px;height:32px;font-size:16px;">${emoji}</div>
+            <span style="font-size:13px;font-weight:700;font-family:'Cinzel',serif;letter-spacing:0.08em;color:var(--l2);">${name}</span>
           </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
             <div>
-              <div style="font-size:9px; font-weight:700; color:var(--l3); text-transform:uppercase; letter-spacing:0.15em; margin-bottom:6px; font-family:'Cinzel',serif;">Weight (lb)</div>
-              <div style="display:flex; border:1px solid var(--sep); overflow:hidden;">
+              <div style="font-size:9px;font-weight:700;color:var(--l3);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:6px;font-family:'Cinzel',serif;">Weight (lb)</div>
+              <div style="display:flex;border:1px solid var(--sep);overflow:hidden;">
                 <button class="step-btn" onclick="step('ew${idx}',-${weightStep})">−</button>
                 <input type="number" id="ew${idx}" min="0" step="${weightStep}" value="${e.weight||''}" placeholder="0">
                 <button class="step-btn" onclick="step('ew${idx}',${weightStep})">+</button>
               </div>
             </div>
             <div>
-              <div style="font-size:9px; font-weight:700; color:var(--l3); text-transform:uppercase; letter-spacing:0.15em; margin-bottom:6px; font-family:'Cinzel',serif;">Reps</div>
-              <div style="display:flex; border:1px solid var(--sep); overflow:hidden;">
+              <div style="font-size:9px;font-weight:700;color:var(--l3);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:6px;font-family:'Cinzel',serif;">Reps</div>
+              <div style="display:flex;border:1px solid var(--sep);overflow:hidden;">
                 <button class="step-btn" onclick="step('er${idx}',-${repsStep})">−</button>
                 <input type="number" id="er${idx}" min="0" step="${repsStep}" value="${e.reps||''}" placeholder="0">
                 <button class="step-btn" onclick="step('er${idx}',${repsStep})">+</button>
@@ -843,7 +1122,7 @@
             </div>
           </div>
         </div>
-        ${idx < EXERCISES.length-1 ? '<div style="height:1px; background:linear-gradient(90deg,transparent,var(--sep),transparent); margin-top:4px;"></div>' : ''}`;
+        ${idx < EXERCISES.length-1 ? '<div style="height:1px;background:linear-gradient(90deg,transparent,var(--sep),transparent);margin-top:4px;"></div>' : ''}`;
     }).join('');
 
     const delBtn = document.getElementById('deleteBtn');
@@ -858,50 +1137,65 @@
     document.body.style.overflow = '';
   }
 
-  function saveEdit() {
+  async function saveEdit() {
     if (!editId) return;
     const session = sessions.find(s => s.id === editId);
     if (!session) return;
+    const entries = {};
     EXERCISES.forEach(({ name }, idx) => {
-      session.entries[name] = {
+      entries[name] = {
         weight: parseFloat(document.getElementById(`ew${idx}`).value)||0,
         reps:   parseInt(document.getElementById(`er${idx}`).value)||0,
       };
     });
-    save(); closeEdit(); flash('rgba(0,199,129,0.08)'); refreshAll();
+    session.entries = entries; // optimistic
+    closeEdit();
+    flash('rgba(0,199,129,0.08)');
+    renderHeatmap(); renderExercises();
+    if (historyOpen) renderHistory();
+    try { await dbUpdateEntries(editId, entries); }
+    catch(e) { console.error('Update failed:', e); }
   }
 
-  function deleteSessionById() {
+  async function deleteSessionById() {
     if (!editId) return;
     if (!deletePending) {
       deletePending = true;
       const btn = document.getElementById('deleteBtn');
-      btn.textContent = 'Confirm Delete'; btn.classList.add('confirm'); return;
-    }
-    sessions = sessions.filter(s => s.id !== editId);
-    save(); closeEdit(); refreshAll();
-  }
-
-  function deleteCard(sessionId, btn) {
-    if (!btn.classList.contains('confirm')) {
-      btn.classList.add('confirm'); btn.textContent = 'Confirm?';
-      setTimeout(() => { btn.classList.remove('confirm'); btn.textContent = 'Delete'; }, 2500);
+      btn.textContent = 'Confirm Delete'; btn.classList.add('confirm');
       return;
     }
-    sessions = sessions.filter(s => s.id !== sessionId);
-    save(); refreshAll();
+    const id = editId;
+    sessions = sessions.filter(s => s.id !== id); // optimistic
+    closeEdit();
+    renderHeatmap(); renderExercises();
+    if (historyOpen) renderHistory();
+    try { await dbDeleteSession(id); }
+    catch(e) { console.error('Delete failed:', e); }
   }
 
-  function refreshAll() {
+  async function deleteCard(sessionId, btn) {
+    if (!btn.classList.contains('confirm')) {
+      btn.classList.add('confirm'); btn.textContent = 'Confirm?';
+      setTimeout(() => { if (!btn.classList.contains('confirm')) return; btn.classList.remove('confirm'); btn.textContent = 'Delete'; }, 2500);
+      return;
+    }
+    sessions = sessions.filter(s => s.id !== sessionId); // optimistic
     renderHeatmap(); renderExercises();
     if (historyOpen) renderHistory();
     if (currentView === 'calendar') renderCalendar();
+    try { await dbDeleteSession(sessionId); }
+    catch(e) { console.error('Delete failed:', e); }
   }
 
-  // ── Init ─────────────────────────────────────────────────────────────────
-  setView('log');
-  renderHeatmap();
-  renderExercises();
+  // ── Init ──────────────────────────────────────────────────────────────────
+  (function init() {
+    const saved = localStorage.getItem(USER_KEY);
+    if (saved && db) {
+      document.getElementById('usernameInput').value = saved;
+      doLogin(); // auto-login
+    }
+  })();
   </script>
 </body>
 </html>
