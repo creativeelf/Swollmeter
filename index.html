@@ -778,7 +778,13 @@
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = '';
 
-    // Start listening to current user's sessions (real-time)
+    // Reset state and render immediately — don't wait for Firebase listener.
+    // This ensures exercise cards always exist in the DOM before user tries to log.
+    sessions = [];
+    renderHeatmap();
+    renderExercises();
+
+    // Start real-time listener (will re-render when Firebase responds)
     startUserSessionsListener();
 
     setView('log');
@@ -838,16 +844,24 @@
 
     if (v === 'calendar') renderCalendar();
     if (v === 'friends') {
-      if (!friendsListening) {
-        // First open — show loading dots while Firebase fetches
+      // Always show loading and do a fresh one-time fetch on every tab open.
+      // This guarantees up-to-date data regardless of listener state.
+      document.getElementById('friendsFeed').innerHTML =
+        `<div style="text-align:center;padding:40px 0;">
+           <span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>
+         </div>`;
+      db.ref('sessions').once('value').then(snap => {
+        allSessions = [];
+        snap.forEach(child => allSessions.push(child.val()));
+        allSessions.sort((a, b) => new Date(b.date) - new Date(a.date));
+        renderFriends();
+      }).catch(e => {
         document.getElementById('friendsFeed').innerHTML =
-          `<div style="text-align:center;padding:40px 0;">
-            <span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>
-           </div>`;
-        startFriendsListener(); // callback will call renderFriends() when data arrives
-      } else {
-        renderFriends(); // listener already active, data is fresh
-      }
+          `<div style="text-align:center;padding:40px 0;font-family:'Cinzel',serif;font-size:12px;color:var(--red-light);letter-spacing:0.1em;">Failed to load — check Firebase rules</div>`;
+        console.error('Friends fetch error:', e);
+      });
+      // Also keep the persistent listener running for real-time updates
+      startFriendsListener();
     }
   }
 
@@ -956,8 +970,24 @@
     if (historyOpen) renderHistory();
 
     // Persist to Firebase
-    try { await dbSaveSession(session); }
-    catch(e) { console.error('Save failed:', e); }
+    try {
+      await dbSaveSession(session);
+    } catch(e) {
+      console.error('Save failed:', e);
+      // Roll back optimistic update and show error
+      sessions = sessions.filter(s => s.id !== session.id);
+      flash('rgba(200,41,28,0.2)');
+      btn.classList.remove('success');
+      btn.style.borderColor = 'var(--red-light)';
+      btn.style.color = 'var(--red-light)';
+      btn.textContent = '✗  Save Failed — Check Firebase';
+      setTimeout(() => {
+        btn.style.borderColor = '';
+        btn.style.color = '';
+        btn.textContent = 'Log Session';
+        renderHeatmap(); renderExercises();
+      }, 3000);
+    }
   }
 
   // ── History ───────────────────────────────────────────────────────────────
