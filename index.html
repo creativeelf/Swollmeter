@@ -838,7 +838,19 @@
     ['log','calendar','friends'].forEach(t =>
       document.getElementById(`tab-${t}`).classList.toggle('active', v === t));
     if (v === 'calendar') renderCalendar();
-    if (v === 'friends')  renderFriends();
+    if (v === 'friends')  {
+      // Show loading state, then do a fresh read so the feed is never stale
+      const feed = document.getElementById('friendsFeed');
+      feed.innerHTML = `<div style="text-align:center;padding:40px 0;color:var(--l3);font-family:'Cinzel',serif;font-size:12px;letter-spacing:0.12em;">
+        <span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>
+      </div>`;
+      db.ref('sessions').once('value').then(snap => {
+        const all = [];
+        snap.forEach(child => { const s = child.val(); if (s) all.push(s); });
+        allSessions = [...all].sort((a, b) => new Date(b.date) - new Date(a.date));
+        renderFriends();
+      }).catch(() => renderFriends()); // fall back to cached allSessions on error
+    }
   }
 
   // ── Heatmap ───────────────────────────────────────────────────────────────
@@ -966,7 +978,7 @@
     const isMe    = s.username === currentUser;
 
     const rows = EXERCISES.map(({ name, emoji }) => {
-      const e = s.entries[name];
+      const e = (s.entries || {})[name];
       if (!e || (e.weight===0 && e.reps===0)) return '';
       return `<div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0;">
         <span style="font-size:12px; color:var(--l2); font-family:'Cinzel',serif;">${emoji}&nbsp;${name}</span>
@@ -1026,7 +1038,15 @@
         </div>`;
       return;
     }
-    feed.innerHTML = allSessions.map(s => sessionCardHTML(s, true)).join('');
+    const cards = [];
+    for (const s of allSessions) {
+      try {
+        cards.push(sessionCardHTML(s, true));
+      } catch(err) {
+        console.warn('Skipping malformed session:', s.id, err);
+      }
+    }
+    feed.innerHTML = cards.join('');
   }
 
   // ── Calendar ──────────────────────────────────────────────────────────────
