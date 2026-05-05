@@ -4,19 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Swollmeter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg:    #000000;
-      --s1:    #1C1C1E;
-      --s2:    #2C2C2E;
-      --s3:    #3A3A3C;
-      --label: #FFFFFF;
-      --l2:    rgba(235,235,245,0.6);
-      --l3:    rgba(235,235,245,0.3);
-      --sep:   rgba(84,84,88,0.65);
-      --blue:  #007AFF;
-      --green: #34C759;
-      --red:   #FF3B30;
+      --bg:        #010A13;
+      --s1:        #0A1428;
+      --s2:        #1E2328;
+      --s3:        #111822;
+      --label:     #F0E6D3;
+      --l2:        #C8AA6E;
+      --l3:        #795B2A;
+      --sep:       #785A28;
+      --gold:      #C89B3C;
+      --gold-hi:   #F0E6D3;
+      --teal:      #0BC4E3;
+      --green:     #00C781;
+      --red:       #C8291C;
+      --red-light: #E84545;
     }
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
@@ -24,11 +29,14 @@
     body {
       background: var(--bg);
       color: var(--label);
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+      font-family: 'Cinzel', 'Palatino Linotype', Georgia, serif;
       min-height: 100vh;
       overscroll-behavior: none;
       padding-bottom: calc(80px + env(safe-area-inset-bottom));
       -webkit-font-smoothing: antialiased;
+      background-image:
+        radial-gradient(ellipse at 50% 0%, rgba(11,196,227,0.04) 0%, transparent 60%),
+        radial-gradient(ellipse at 0% 100%, rgba(200,155,60,0.06) 0%, transparent 50%);
     }
 
     /* ── Flash overlay ── */
@@ -36,150 +44,271 @@
     #flashOverlay.active { animation: screenFlash 0.4s ease-out forwards; }
     @keyframes screenFlash { 0% { opacity: 1; } 100% { opacity: 0; } }
 
-    /* ── Section headers (iOS grouped list style) ── */
+    /* ── Section headers ── */
     .section-label {
-      font-size: 13px; font-weight: 600; color: var(--l3);
-      text-transform: uppercase; letter-spacing: 0.06em;
-      margin-bottom: 8px; padding: 0 4px;
+      font-size: 10px; font-weight: 700; color: var(--l3);
+      text-transform: uppercase; letter-spacing: 0.2em;
+      margin-bottom: 10px; padding: 0 4px;
+      font-family: 'Cinzel', serif;
     }
 
-    /* ── Cards ── */
-    .card { background: var(--s2); border-radius: 16px; }
+    /* ── Decorative divider ── */
+    .lol-divider {
+      display: flex; align-items: center; gap: 8px; margin: 4px 0;
+    }
+    .lol-divider::before, .lol-divider::after {
+      content: ''; flex: 1; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--sep));
+    }
+    .lol-divider::after {
+      background: linear-gradient(90deg, var(--sep), transparent);
+    }
+    .lol-divider span { color: var(--gold); font-size: 10px; flex-shrink: 0; }
+
+    /* ── Panel card ── */
+    .card {
+      background: var(--s2);
+      border: 1px solid var(--sep);
+      position: relative;
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    }
+    .card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(200,155,60,0.06) 0%, transparent 50%);
+      pointer-events: none;
+    }
     .card.logged { animation: cardPop 0.55s cubic-bezier(0.34,1.56,0.64,1) forwards; }
     @keyframes cardPop {
-      0%   { transform: scale(1); box-shadow: none; }
-      45%  { transform: scale(1.025); box-shadow: 0 6px 28px rgba(0,122,255,0.28); }
-      100% { transform: scale(1); box-shadow: none; }
+      0%   { box-shadow: none; }
+      45%  { box-shadow: 0 0 24px rgba(11,196,227,0.35), inset 0 0 12px rgba(11,196,227,0.08); }
+      100% { box-shadow: none; }
+    }
+
+    /* ── Corner ornaments ── */
+    .card-ornament {
+      position: relative;
+    }
+    .card-ornament::before,
+    .card-ornament::after {
+      content: '';
+      position: absolute;
+      width: 8px; height: 8px;
+      border-color: var(--gold);
+      border-style: solid;
+    }
+    .card-ornament::before {
+      top: -1px; left: -1px;
+      border-width: 2px 0 0 2px;
+    }
+    .card-ornament::after {
+      bottom: -1px; right: -1px;
+      border-width: 0 2px 2px 0;
     }
 
     /* ── Inputs ── */
     input[type="number"] {
-      background: var(--s3); color: var(--label);
+      background: var(--s3);
+      color: var(--label);
       border: none; outline: none;
-      font-family: inherit; font-size: 17px; font-weight: 500;
-      -moz-appearance: textfield; width: 100%; text-align: center; height: 44px;
+      font-family: 'Cinzel', serif;
+      font-size: 16px; font-weight: 600;
+      -moz-appearance: textfield;
+      width: 100%; text-align: center; height: 44px;
+      letter-spacing: 0.05em;
     }
     input[type="number"]::-webkit-inner-spin-button,
     input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
-    input[type="number"]:focus { box-shadow: inset 0 0 0 2px var(--blue); }
+    input[type="number"]:focus {
+      box-shadow: inset 0 0 0 1px var(--gold);
+      background: rgba(200,155,60,0.06);
+    }
+    input[type="number"]::placeholder { color: var(--l3); }
 
     /* ── Stepper buttons ── */
     .step-btn {
-      background: var(--s3); color: var(--blue); border: none;
+      background: var(--s3);
+      color: var(--gold);
+      border: none; border-color: var(--sep);
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       user-select: none; touch-action: manipulation;
-      font-size: 24px; font-weight: 300; min-width: 44px; height: 44px;
-      transition: background 0.1s;
+      font-size: 20px; font-weight: 700;
+      min-width: 44px; height: 44px;
+      transition: background 0.1s, color 0.1s;
+      font-family: serif;
     }
-    .step-btn:active { background: #4A4A4C; }
+    .step-btn:active { background: rgba(200,155,60,0.15); color: var(--gold-hi); }
 
     /* ── Primary button ── */
     #mainLogBtn {
-      width: 100%; padding: 16px;
-      background: var(--blue); color: #fff; border: none;
-      font-family: inherit; font-size: 17px; font-weight: 600;
-      border-radius: 14px; cursor: pointer;
-      letter-spacing: -0.2px; touch-action: manipulation;
-      transition: background 0.15s, transform 0.1s;
+      width: 100%; padding: 15px;
+      background: linear-gradient(180deg, #1a3a5c 0%, #0e2440 100%);
+      color: var(--gold-hi);
+      border: 1px solid var(--gold);
+      font-family: 'Cinzel', serif;
+      font-size: 14px; font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      touch-action: manipulation;
+      transition: all 0.15s;
+      position: relative;
+      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
     }
-    #mainLogBtn:active { background: #0062CC; transform: scale(0.98); }
+    #mainLogBtn::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(180deg, rgba(11,196,227,0.08) 0%, transparent 100%);
+      pointer-events: none;
+    }
+    #mainLogBtn:active {
+      background: linear-gradient(180deg, #0d2035 0%, #060f1c 100%);
+      box-shadow: 0 0 16px rgba(200,155,60,0.3);
+    }
     #mainLogBtn.success { animation: btnSuccess 1.6s ease-out forwards; }
     @keyframes btnSuccess {
-      0%   { background: var(--green); }
-      70%  { background: var(--green); }
-      100% { background: var(--blue); }
+      0%   { border-color: var(--green); color: var(--green); box-shadow: 0 0 20px rgba(0,199,129,0.4); }
+      70%  { border-color: var(--green); color: var(--green); box-shadow: 0 0 20px rgba(0,199,129,0.4); }
+      100% { border-color: var(--gold); color: var(--gold-hi); box-shadow: none; }
+    }
+
+    /* ── Week count badge ── */
+    #weekCount {
+      font-size: 42px; font-weight: 900;
+      color: transparent;
+      background: linear-gradient(180deg, #F0E6D3 0%, #C89B3C 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      line-height: 1;
+      letter-spacing: -2px;
+      font-family: 'Cinzel', serif;
     }
 
     /* ── Heatmap ── */
     .hm-day { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; }
-    .hm-label { font-size: 11px; font-weight: 500; color: var(--l3); }
+    .hm-label { font-size: 9px; font-weight: 700; color: var(--l3); letter-spacing: 0.1em; font-family: 'Cinzel', serif; }
     .hm-dot {
-      width: 30px; height: 30px; border-radius: 50%;
+      width: 30px; height: 30px;
       background: var(--s2);
+      border: 1px solid var(--sep);
       display: flex; align-items: center; justify-content: center;
-      font-size: 13px; color: transparent;
+      font-size: 11px; color: transparent;
       transition: all 0.3s;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     }
-    .hm-day.active   .hm-label { color: var(--blue); }
-    .hm-day.active   .hm-dot   { background: var(--blue); color: #fff; }
-    .hm-day.today    .hm-label { color: var(--blue); font-weight: 700; }
-    .hm-day.today:not(.active) .hm-dot { background: var(--s3); box-shadow: inset 0 0 0 2px var(--blue); }
+    .hm-day.active   .hm-label { color: var(--gold); }
+    .hm-day.active   .hm-dot   { background: var(--gold); color: var(--bg); border-color: var(--gold-hi); }
+    .hm-day.today    .hm-label { color: var(--teal); font-weight: 700; }
+    .hm-day.today:not(.active) .hm-dot { background: rgba(11,196,227,0.12); border-color: var(--teal); box-shadow: 0 0 8px rgba(11,196,227,0.3); }
 
     /* ── Exercise icon tile ── */
     .ex-icon {
-      width: 44px; height: 44px; border-radius: 10px;
+      width: 44px; height: 44px;
       display: flex; align-items: center; justify-content: center;
       font-size: 22px; flex-shrink: 0;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     }
 
     /* ── Inline action buttons ── */
     .btn-edit {
-      font-family: inherit; font-size: 13px; font-weight: 500;
-      color: var(--blue); background: rgba(0,122,255,0.12); border: none;
-      padding: 5px 14px; border-radius: 8px; cursor: pointer;
-      transition: background 0.12s; touch-action: manipulation;
+      font-family: 'Cinzel', serif;
+      font-size: 10px; font-weight: 700;
+      color: var(--teal);
+      background: rgba(11,196,227,0.08);
+      border: 1px solid rgba(11,196,227,0.3);
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: all 0.12s;
+      touch-action: manipulation;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
     }
-    .btn-edit:active { background: rgba(0,122,255,0.22); }
+    .btn-edit:active { background: rgba(11,196,227,0.2); }
 
     .btn-del {
-      font-family: inherit; font-size: 13px; font-weight: 500;
-      color: var(--red); background: rgba(255,59,48,0.1); border: none;
-      padding: 5px 14px; border-radius: 8px; cursor: pointer;
-      transition: all 0.12s; touch-action: manipulation;
+      font-family: 'Cinzel', serif;
+      font-size: 10px; font-weight: 700;
+      color: var(--red-light);
+      background: rgba(200,41,28,0.1);
+      border: 1px solid rgba(200,41,28,0.3);
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: all 0.12s;
+      touch-action: manipulation;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
     }
-    .btn-del:active { background: rgba(255,59,48,0.2); }
-    .btn-del.confirm { background: var(--red); color: #fff; }
+    .btn-del:active { background: rgba(200,41,28,0.2); }
+    .btn-del.confirm { background: var(--red); color: var(--label); border-color: var(--red-light); }
 
     /* ── History card ── */
-    .history-card { background: var(--s2); border-radius: 14px; padding: 14px; }
+    .history-card {
+      background: var(--s2);
+      border: 1px solid var(--sep);
+      padding: 14px;
+      position: relative;
+    }
+    .history-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 3px; height: 100%;
+      background: linear-gradient(180deg, var(--gold), transparent);
+    }
 
     /* ── BOTTOM NAV ── */
     #bottomNav {
       position: fixed; bottom: 0; left: 0; right: 0;
-      background: rgba(20,20,22,0.92);
-      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-      border-top: 0.5px solid var(--sep);
+      background: rgba(1,10,19,0.96);
+      border-top: 1px solid var(--sep);
       display: flex;
       padding-bottom: env(safe-area-inset-bottom);
       z-index: 500;
     }
     .nav-tab {
       flex: 1; display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 3px; padding: 10px 0;
-      color: var(--l3); background: transparent; border: none;
-      font-family: inherit; font-size: 10px; font-weight: 500;
-      cursor: pointer; transition: color 0.18s; touch-action: manipulation;
+      justify-content: center; gap: 4px; padding: 10px 0;
+      color: var(--l3);
+      background: transparent; border: none;
+      font-family: 'Cinzel', serif;
+      font-size: 9px; font-weight: 700;
+      cursor: pointer; transition: color 0.18s;
+      touch-action: manipulation;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
     }
-    .nav-tab svg { width: 25px; height: 25px; }
-    .nav-tab.active { color: var(--blue); }
+    .nav-tab svg { width: 22px; height: 22px; }
+    .nav-tab.active { color: var(--gold); }
+    .nav-tab.active svg { filter: drop-shadow(0 0 4px rgba(200,155,60,0.6)); }
 
     /* ── CALENDAR ── */
     .cal-dow {
       display: grid; grid-template-columns: repeat(7,1fr);
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
     .cal-dow span {
-      text-align: center; font-size: 12px; font-weight: 600;
+      text-align: center; font-size: 10px; font-weight: 700;
       color: var(--l3); padding: 4px 0;
+      font-family: 'Cinzel', serif; letter-spacing: 0.1em;
     }
     #calGrid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
     .cal-cell {
-      aspect-ratio: 1; border-radius: 50%;
+      aspect-ratio: 1;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       cursor: pointer; transition: all 0.14s;
       touch-action: manipulation; user-select: none; position: relative;
     }
     .cal-cell.empty  { cursor: default; pointer-events: none; }
-    .cal-cell .cn    { font-size: 15px; font-weight: 400; color: var(--l2); }
-    .cal-cell .cd    { width: 4px; height: 4px; border-radius: 50%; background: transparent; margin-top: 2px; }
-    .cal-cell.has-session .cd { background: var(--blue); }
-    .cal-cell.is-today:not(.is-selected) { background: rgba(0,122,255,0.14); }
-    .cal-cell.is-today .cn   { color: var(--blue); font-weight: 700; }
-    .cal-cell.is-selected    { background: var(--blue); }
-    .cal-cell.is-selected .cn { color: #fff; font-weight: 700; }
-    .cal-cell.is-selected .cd { background: rgba(255,255,255,0.55); }
-    .cal-cell:not(.empty):not(.is-selected):active { background: var(--s2); }
+    .cal-cell .cn    { font-size: 13px; font-weight: 600; color: rgba(240,230,211,0.5); font-family: 'Cinzel', serif; }
+    .cal-cell .cd    { width: 4px; height: 4px; background: transparent; margin-top: 2px; transform: rotate(45deg); }
+    .cal-cell.has-session .cd { background: var(--gold); }
+    .cal-cell.is-today:not(.is-selected) { background: rgba(11,196,227,0.08); border: 1px solid rgba(11,196,227,0.3); }
+    .cal-cell.is-today .cn   { color: var(--teal); font-weight: 700; }
+    .cal-cell.is-selected    { background: rgba(200,155,60,0.15); border: 1px solid var(--gold); }
+    .cal-cell.is-selected .cn { color: var(--gold-hi); font-weight: 700; }
+    .cal-cell.is-selected .cd { background: var(--gold); }
+    .cal-cell:not(.empty):not(.is-selected):active { background: rgba(200,155,60,0.08); }
 
     #dayPanel { animation: fadeUp 0.2s ease-out; }
     @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
@@ -187,35 +316,112 @@
     /* ── EDIT MODAL ── */
     #editModal {
       position: fixed; inset: 0; z-index: 800;
-      background: rgba(0,0,0,0.5);
-      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      background: rgba(1,10,19,0.8);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
       display: none; align-items: flex-end;
     }
     #editModal.open { display: flex; }
     .modal-sheet {
-      width: 100%; background: var(--s1);
-      border-radius: 22px 22px 0 0;
+      width: 100%;
+      background: var(--s1);
+      border-top: 1px solid var(--gold);
       max-height: 90vh; overflow-y: auto;
       padding-bottom: env(safe-area-inset-bottom);
       animation: slideUp 0.3s cubic-bezier(0.22,1,0.36,1);
+      position: relative;
+    }
+    .modal-sheet::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold-hi), transparent);
     }
     @keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
-    .modal-handle { width: 36px; height: 5px; background: var(--s3); border-radius: 3px; margin: 12px auto 0; }
+    .modal-handle { width: 40px; height: 3px; background: var(--sep); margin: 14px auto 0; }
 
     .modal-primary-btn {
-      width: 100%; padding: 16px; border: none; border-radius: 14px;
-      font-family: inherit; font-size: 17px; font-weight: 600;
-      cursor: pointer; transition: all 0.15s; touch-action: manipulation;
+      width: 100%; padding: 14px; border: none;
+      font-family: 'Cinzel', serif;
+      font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: all 0.15s;
+      touch-action: manipulation;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      position: relative;
     }
-    .modal-primary-btn.save   { background: var(--blue); color: #fff; }
-    .modal-primary-btn.save:active   { background: #0062CC; }
-    .modal-primary-btn.cancel { background: var(--s2); color: var(--blue); }
-    .modal-primary-btn.cancel:active { background: var(--s3); }
-    .modal-primary-btn.delete { background: rgba(255,59,48,0.1); color: var(--red); }
-    .modal-primary-btn.delete:active { background: rgba(255,59,48,0.2); }
-    .modal-primary-btn.delete.confirm { background: var(--red); color: #fff; }
+    .modal-primary-btn.save {
+      background: linear-gradient(180deg, #1a3a5c 0%, #0e2440 100%);
+      color: var(--gold-hi);
+      border: 1px solid var(--gold);
+      clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+    }
+    .modal-primary-btn.save:active { background: #0d2035; box-shadow: 0 0 12px rgba(200,155,60,0.3); }
+    .modal-primary-btn.cancel {
+      background: transparent;
+      color: var(--l2);
+      border: 1px solid var(--sep);
+    }
+    .modal-primary-btn.cancel:active { background: rgba(200,155,60,0.05); }
+    .modal-primary-btn.delete {
+      background: transparent;
+      color: var(--red-light);
+      border: 1px solid rgba(200,41,28,0.4);
+    }
+    .modal-primary-btn.delete:active { background: rgba(200,41,28,0.1); }
+    .modal-primary-btn.delete.confirm {
+      background: var(--red);
+      color: var(--label);
+      border-color: var(--red-light);
+    }
 
-    ::-webkit-scrollbar { width: 0; }
+    /* ── Title styling ── */
+    .lol-title {
+      font-family: 'Cinzel', serif;
+      font-size: 30px; font-weight: 900;
+      letter-spacing: 0.05em;
+      line-height: 1.05;
+      background: linear-gradient(180deg, #F0E6D3 0%, #C89B3C 60%, #785A28 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .lol-subtitle {
+      font-size: 10px;
+      color: var(--l3);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      font-family: 'Cinzel', serif;
+      margin-top: 4px;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--sep); }
+
+    /* ── Month nav buttons ── */
+    .month-nav-btn {
+      background: var(--s2);
+      border: 1px solid var(--sep);
+      color: var(--gold);
+      width: 36px; height: 36px;
+      font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      touch-action: manipulation;
+      transition: all 0.14s;
+    }
+    .month-nav-btn:active { background: rgba(200,155,60,0.15); }
+
+    /* ── History toggle ── */
+    .history-toggle-btn {
+      font-size: 10px; font-weight: 700;
+      color: var(--gold);
+      background: none; border: none;
+      cursor: pointer;
+      font-family: 'Cinzel', serif;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
   </style>
 </head>
 <body>
@@ -224,23 +430,27 @@
   <!-- ══════════════════ LOG VIEW ══════════════════ -->
   <div id="viewLog">
 
-    <header style="padding: 58px 20px 16px;">
+    <header style="padding: 52px 20px 16px;">
       <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px;">
         <div>
-          <div style="font-size:34px; font-weight:700; letter-spacing:-0.5px; line-height:1.05;">Swollmeter</div>
-          <div style="font-size:14px; color:var(--l3); margin-top:3px;">Gym Progress Tracker</div>
+          <div class="lol-title">Swollmeter</div>
+          <div class="lol-subtitle">Gym Progress Tracker</div>
         </div>
         <div style="text-align:right;">
-          <div style="font-size:12px; font-weight:600; color:var(--l3); text-transform:uppercase; letter-spacing:0.05em;">This week</div>
-          <div id="weekCount" style="font-size:44px; font-weight:700; color:var(--blue); line-height:1; letter-spacing:-1px;">0</div>
+          <div style="font-size:9px; font-weight:700; color:var(--l3); text-transform:uppercase; letter-spacing:0.2em; font-family:'Cinzel',serif;">This Week</div>
+          <div id="weekCount">0</div>
         </div>
       </div>
+
+      <!-- Decorative divider -->
+      <div class="lol-divider" style="margin-bottom:14px;"><span>◆</span></div>
+
       <!-- Heatmap -->
       <div id="heatmap" style="display:flex; gap:4px;"></div>
     </header>
 
     <div style="padding: 8px 20px 0;">
-      <div class="section-label">Exercises</div>
+      <div class="section-label">◆ &nbsp;Exercises</div>
       <div id="exerciseList" style="display:flex; flex-direction:column; gap:10px;"></div>
     </div>
 
@@ -250,9 +460,8 @@
 
     <div style="padding: 28px 20px 0;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <span class="section-label" style="margin:0;">Recent Sessions</span>
-        <button id="historyToggle" onclick="toggleHistory()"
-          style="font-size:15px; font-weight:500; color:var(--blue); background:none; border:none; cursor:pointer;">Show</button>
+        <span class="section-label" style="margin:0;">◆ &nbsp;Recent Sessions</span>
+        <button id="historyToggle" onclick="toggleHistory()" class="history-toggle-btn">Show</button>
       </div>
       <div id="historyPanel" style="display:none; flex-direction:column; gap:8px;"></div>
     </div>
@@ -260,19 +469,18 @@
 
   <!-- ══════════════════ CALENDAR VIEW ══════════════════ -->
   <div id="viewCalendar" style="display:none;">
-    <header style="padding: 58px 20px 16px;">
-      <div style="font-size:34px; font-weight:700; letter-spacing:-0.5px; line-height:1.05; margin-bottom:3px;">Calendar</div>
-      <div style="font-size:14px; color:var(--l3);">Session History</div>
+    <header style="padding: 52px 20px 16px;">
+      <div class="lol-title" style="font-size:26px; margin-bottom:3px;">Calendar</div>
+      <div class="lol-subtitle">Session History</div>
+      <div class="lol-divider" style="margin-top:14px;"><span>◆</span></div>
     </header>
 
     <div style="padding: 0 20px;">
       <!-- Month nav -->
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-        <button onclick="shiftMonth(-1)"
-          style="background:var(--s2); border:none; color:var(--blue); width:36px; height:36px; border-radius:50%; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation;">‹</button>
-        <span id="calMonthLabel" style="font-size:17px; font-weight:600; letter-spacing:-0.2px;"></span>
-        <button onclick="shiftMonth(1)"
-          style="background:var(--s2); border:none; color:var(--blue); width:36px; height:36px; border-radius:50%; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; touch-action:manipulation;">›</button>
+        <button onclick="shiftMonth(-1)" class="month-nav-btn">‹</button>
+        <span id="calMonthLabel" style="font-size:14px; font-weight:700; letter-spacing:0.15em; font-family:'Cinzel',serif; color:var(--l2);"></span>
+        <button onclick="shiftMonth(1)" class="month-nav-btn">›</button>
       </div>
       <div class="cal-dow">
         <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
@@ -317,15 +525,15 @@
 
       <div style="display:flex; justify-content:space-between; align-items:flex-start; padding: 18px 20px 14px;">
         <div>
-          <div style="font-size:19px; font-weight:700; letter-spacing:-0.3px;">Edit Session</div>
-          <div id="editDateLabel" style="font-size:13px; color:var(--l3); margin-top:3px;"></div>
+          <div style="font-size:16px; font-weight:700; letter-spacing:0.1em; font-family:'Cinzel',serif; color:var(--l2);">Edit Session</div>
+          <div id="editDateLabel" style="font-size:11px; color:var(--l3); margin-top:4px; font-family:'Cinzel',serif; letter-spacing:0.05em;"></div>
         </div>
         <button onclick="closeEdit()"
-          style="width:30px; height:30px; border-radius:50%; background:var(--s2); border:none;
-                 color:var(--l2); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;">✕</button>
+          style="width:30px; height:30px; background:var(--s2); border:1px solid var(--sep);
+                 color:var(--l2); font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:serif;">✕</button>
       </div>
 
-      <div style="height:0.5px; background:var(--sep); margin:0 20px;"></div>
+      <div style="height:1px; background:linear-gradient(90deg,transparent,var(--sep),transparent); margin:0 20px;"></div>
 
       <div id="editExercises" style="padding:16px 20px; display:flex; flex-direction:column; gap:16px;"></div>
 
@@ -342,11 +550,11 @@
   <script>
   // ── Config ────────────────────────────────────────────────────────────────
   const EXERCISES = [
-    { name:'Chest Press',    emoji:'🏋️', bg:'linear-gradient(135deg,#FF6B35,#F7931E)', weightStep:5,  repsStep:1 },
-    { name:'Seated Row',     emoji:'🚣', bg:'linear-gradient(135deg,#007AFF,#5AC8FA)', weightStep:5,  repsStep:1 },
-    { name:'Machine Crunch', emoji:'🤸', bg:'linear-gradient(135deg,#AF52DE,#FF2D55)', weightStep:5,  repsStep:1 },
-    { name:'Leg Press',      emoji:'🦵', bg:'linear-gradient(135deg,#34C759,#30D158)', weightStep:10, repsStep:1 },
-    { name:'Dumbbell Work',  emoji:'💪', bg:'linear-gradient(135deg,#FF2D55,#FF9500)', weightStep:5,  repsStep:1 },
+    { name:'Chest Press',    emoji:'🏋️', bg:'linear-gradient(135deg,#8B2500,#C84B00)', weightStep:5,  repsStep:1 },
+    { name:'Seated Row',     emoji:'🚣', bg:'linear-gradient(135deg,#0A3A5C,#0BC4E3)', weightStep:5,  repsStep:1 },
+    { name:'Machine Crunch', emoji:'🤸', bg:'linear-gradient(135deg,#4A0E6B,#C89B3C)', weightStep:5,  repsStep:1 },
+    { name:'Leg Press',      emoji:'🦵', bg:'linear-gradient(135deg,#0A3B1F,#00C781)', weightStep:10, repsStep:1 },
+    { name:'Dumbbell Work',  emoji:'💪', bg:'linear-gradient(135deg,#7A1A00,#C89B3C)', weightStep:5,  repsStep:1 },
   ];
   const MONTH_NAMES = ['January','February','March','April','May','June',
                        'July','August','September','October','November','December'];
@@ -379,7 +587,7 @@
     return sessions.filter(s => new Date(s.date) >= sow);
   }
 
-  function flash(color = 'rgba(0,122,255,0.12)') {
+  function flash(color = 'rgba(200,155,60,0.1)') {
     const ov = document.getElementById('flashOverlay');
     ov.style.background = color;
     ov.classList.remove('active'); void ov.offsetWidth; ov.classList.add('active');
@@ -429,27 +637,28 @@
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
           <div class="ex-icon" style="background:${bg};">${emoji}</div>
           <div style="flex:1; min-width:0;">
-            <div style="font-size:17px; font-weight:600; letter-spacing:-0.2px;">${name}</div>
-            <div style="font-size:13px; color:${hasLast ? 'var(--blue)' : 'var(--l3)'}; margin-top:2px;">
+            <div style="font-size:14px; font-weight:700; letter-spacing:0.08em; font-family:'Cinzel',serif;">${name}</div>
+            <div style="font-size:11px; color:${hasLast ? 'var(--teal)' : 'var(--l3)'}; margin-top:3px; letter-spacing:0.05em; font-family:'Cinzel',serif;">
               ${hasLast ? `Last: ${last.weight} lb &times; ${last.reps} reps` : 'No data yet'}
             </div>
           </div>
         </div>
+        <div style="height:1px; background:linear-gradient(90deg,var(--sep),transparent); margin-bottom:12px;"></div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div>
-            <div style="font-size:11px; font-weight:600; color:var(--l3); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Weight (lb)</div>
-            <div style="display:flex; border-radius:10px; overflow:hidden;">
-              <button class="step-btn" style="border-radius:10px 0 0 10px;" onclick="step('w${idx}',-${weightStep})">−</button>
+            <div style="font-size:9px; font-weight:700; color:var(--l3); text-transform:uppercase; letter-spacing:0.15em; margin-bottom:6px; font-family:'Cinzel',serif;">Weight (lb)</div>
+            <div style="display:flex; border:1px solid var(--sep); overflow:hidden;">
+              <button class="step-btn" onclick="step('w${idx}',-${weightStep})">−</button>
               <input type="number" id="w${idx}" min="0" step="${weightStep}" placeholder="0" value="${hasLast ? last.weight : ''}">
-              <button class="step-btn" style="border-radius:0 10px 10px 0;" onclick="step('w${idx}',${weightStep})">+</button>
+              <button class="step-btn" onclick="step('w${idx}',${weightStep})">+</button>
             </div>
           </div>
           <div>
-            <div style="font-size:11px; font-weight:600; color:var(--l3); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Reps</div>
-            <div style="display:flex; border-radius:10px; overflow:hidden;">
-              <button class="step-btn" style="border-radius:10px 0 0 10px;" onclick="step('r${idx}',-${repsStep})">−</button>
+            <div style="font-size:9px; font-weight:700; color:var(--l3); text-transform:uppercase; letter-spacing:0.15em; margin-bottom:6px; font-family:'Cinzel',serif;">Reps</div>
+            <div style="display:flex; border:1px solid var(--sep); overflow:hidden;">
+              <button class="step-btn" onclick="step('r${idx}',-${repsStep})">−</button>
               <input type="number" id="r${idx}" min="0" step="${repsStep}" placeholder="0" value="${hasLast ? last.reps : ''}">
-              <button class="step-btn" style="border-radius:0 10px 10px 0;" onclick="step('r${idx}',${repsStep})">+</button>
+              <button class="step-btn" onclick="step('r${idx}',${repsStep})">+</button>
             </div>
           </div>
         </div>`;
@@ -471,19 +680,19 @@
       entries[name] = { weight:w, reps:r };
       if (w > 0 || r > 0) hasData = true;
     });
-    if (!hasData) { flash('rgba(255,59,48,0.1)'); return; }
+    if (!hasData) { flash('rgba(200,41,28,0.1)'); return; }
 
     sessions.push({ id:Date.now(), date:new Date().toISOString(), entries });
     save();
 
-    flash('rgba(52,199,89,0.1)');
+    flash('rgba(0,199,129,0.08)');
     EXERCISES.forEach((_, idx) => {
       const card = document.getElementById(`card-${idx}`);
       if (!card) return;
       setTimeout(() => { card.classList.remove('logged'); void card.offsetWidth; card.classList.add('logged'); }, idx * 65);
     });
     const btn = document.getElementById('mainLogBtn');
-    btn.textContent = '✓  Logged!'; btn.classList.add('success');
+    btn.textContent = '✓  Session Logged'; btn.classList.add('success');
     setTimeout(() => { btn.classList.remove('success'); btn.textContent = 'Log Session'; }, 1700);
 
     renderHeatmap(); renderExercises();
@@ -506,8 +715,8 @@
       const e = s.entries[name];
       if (!e || (e.weight===0 && e.reps===0)) return '';
       return `<div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0;">
-        <span style="font-size:14px; color:var(--l2);">${emoji}&nbsp; ${name}</span>
-        <span style="font-size:14px; font-weight:500;">${e.weight} lb &times; ${e.reps}</span>
+        <span style="font-size:12px; color:var(--l2); font-family:'Cinzel',serif; letter-spacing:0.03em;">${emoji}&nbsp; ${name}</span>
+        <span style="font-size:12px; font-weight:600; color:var(--teal); font-family:'Cinzel',serif;">${e.weight} lb &times; ${e.reps}</span>
       </div>`;
     }).filter(Boolean).join('');
 
@@ -515,15 +724,15 @@
       <div class="history-card">
         <div style="display:flex; justify-content:space-between; align-items:center; ${rows ? 'margin-bottom:10px;' : ''}">
           <div>
-            <div style="font-size:15px; font-weight:600;">${dateStr}</div>
-            <div style="font-size:13px; color:var(--l3); margin-top:2px;">${timeStr}</div>
+            <div style="font-size:13px; font-weight:700; font-family:'Cinzel',serif; color:var(--l2);">${dateStr}</div>
+            <div style="font-size:10px; color:var(--l3); margin-top:2px; font-family:'Cinzel',serif; letter-spacing:0.08em;">${timeStr}</div>
           </div>
           <div style="display:flex; gap:8px; flex-shrink:0;">
             <button class="btn-del" id="del-${s.id}" onclick="deleteCard(${s.id},this)">Delete</button>
             <button class="btn-edit" onclick="openEdit(${s.id})">Edit</button>
           </div>
         </div>
-        ${rows ? `<div style="border-top:0.5px solid var(--sep); padding-top:8px;">${rows}</div>` : ''}
+        ${rows ? `<div style="border-top:1px solid rgba(120,90,40,0.4); padding-top:8px;">${rows}</div>` : ''}
       </div>`;
   }
 
@@ -531,7 +740,7 @@
     const panel  = document.getElementById('historyPanel');
     const recent = [...sessions].reverse().slice(0, 15);
     panel.innerHTML = recent.length === 0
-      ? '<div style="font-size:15px; color:var(--l3); text-align:center; padding:20px 0;">No sessions yet</div>'
+      ? '<div style="font-size:13px; color:var(--l3); text-align:center; padding:20px 0; font-family:\'Cinzel\',serif; letter-spacing:0.1em;">No sessions yet</div>'
       : recent.map(sessionCardHTML).join('');
   }
 
@@ -588,10 +797,10 @@
     });
     const dateStr = new Date(year, month, day).toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
     panel.innerHTML = `
-      <div style="height:0.5px; background:var(--sep); margin-bottom:16px;"></div>
-      <div style="font-size:15px; font-weight:600; color:var(--l2); margin-bottom:12px;">${dateStr}</div>
+      <div class="lol-divider" style="margin-bottom:14px;"><span>◆</span></div>
+      <div style="font-size:13px; font-weight:700; color:var(--l2); margin-bottom:12px; font-family:'Cinzel',serif; letter-spacing:0.08em;">${dateStr}</div>
       ${daySessions.length === 0
-        ? `<div style="font-size:15px; color:var(--l3); text-align:center; padding:16px 0;">No sessions this day</div>`
+        ? `<div style="font-size:13px; color:var(--l3); text-align:center; padding:16px 0; font-family:'Cinzel',serif; letter-spacing:0.1em;">No sessions this day</div>`
         : `<div style="display:flex; flex-direction:column; gap:8px;">${daySessions.map(sessionCardHTML).join('')}</div>`
       }`;
   }
@@ -612,29 +821,29 @@
       return `
         <div>
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-            <div class="ex-icon" style="background:${bg}; width:32px; height:32px; border-radius:8px; font-size:16px;">${emoji}</div>
-            <span style="font-size:15px; font-weight:600;">${name}</span>
+            <div class="ex-icon" style="background:${bg}; width:32px; height:32px; font-size:16px;">${emoji}</div>
+            <span style="font-size:13px; font-weight:700; font-family:'Cinzel',serif; letter-spacing:0.08em; color:var(--l2);">${name}</span>
           </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
             <div>
-              <div style="font-size:11px; font-weight:600; color:var(--l3); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Weight (lb)</div>
-              <div style="display:flex; border-radius:10px; overflow:hidden;">
-                <button class="step-btn" style="border-radius:10px 0 0 10px;" onclick="step('ew${idx}',-${weightStep})">−</button>
+              <div style="font-size:9px; font-weight:700; color:var(--l3); text-transform:uppercase; letter-spacing:0.15em; margin-bottom:6px; font-family:'Cinzel',serif;">Weight (lb)</div>
+              <div style="display:flex; border:1px solid var(--sep); overflow:hidden;">
+                <button class="step-btn" onclick="step('ew${idx}',-${weightStep})">−</button>
                 <input type="number" id="ew${idx}" min="0" step="${weightStep}" value="${e.weight||''}" placeholder="0">
-                <button class="step-btn" style="border-radius:0 10px 10px 0;" onclick="step('ew${idx}',${weightStep})">+</button>
+                <button class="step-btn" onclick="step('ew${idx}',${weightStep})">+</button>
               </div>
             </div>
             <div>
-              <div style="font-size:11px; font-weight:600; color:var(--l3); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Reps</div>
-              <div style="display:flex; border-radius:10px; overflow:hidden;">
-                <button class="step-btn" style="border-radius:10px 0 0 10px;" onclick="step('er${idx}',-${repsStep})">−</button>
+              <div style="font-size:9px; font-weight:700; color:var(--l3); text-transform:uppercase; letter-spacing:0.15em; margin-bottom:6px; font-family:'Cinzel',serif;">Reps</div>
+              <div style="display:flex; border:1px solid var(--sep); overflow:hidden;">
+                <button class="step-btn" onclick="step('er${idx}',-${repsStep})">−</button>
                 <input type="number" id="er${idx}" min="0" step="${repsStep}" value="${e.reps||''}" placeholder="0">
-                <button class="step-btn" style="border-radius:0 10px 10px 0;" onclick="step('er${idx}',${repsStep})">+</button>
+                <button class="step-btn" onclick="step('er${idx}',${repsStep})">+</button>
               </div>
             </div>
           </div>
         </div>
-        ${idx < EXERCISES.length-1 ? '<div style="height:0.5px; background:var(--sep);"></div>' : ''}`;
+        ${idx < EXERCISES.length-1 ? '<div style="height:1px; background:linear-gradient(90deg,transparent,var(--sep),transparent); margin-top:4px;"></div>' : ''}`;
     }).join('');
 
     const delBtn = document.getElementById('deleteBtn');
@@ -659,7 +868,7 @@
         reps:   parseInt(document.getElementById(`er${idx}`).value)||0,
       };
     });
-    save(); closeEdit(); flash('rgba(52,199,89,0.1)'); refreshAll();
+    save(); closeEdit(); flash('rgba(0,199,129,0.08)'); refreshAll();
   }
 
   function deleteSessionById() {
