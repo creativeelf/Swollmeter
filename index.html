@@ -719,31 +719,53 @@
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────
+
+  // Firebase can hang forever instead of rejecting when rules block a read.
+  // Wrap every Firebase call with a 8-second timeout so the button never
+  // stays stuck loading indefinitely.
+  function fbOnce(ref) {
+    return Promise.race([
+      ref.once('value'),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Firebase timeout — check database rules')), 8000)
+      )
+    ]);
+  }
+
+  function resetLoginBtn() {
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = false;
+    btn.textContent = 'Enter Your Name';
+  }
+
   async function doLogin() {
     if (!db) { showLoginError('Firebase not configured — see code comments.'); return; }
     const raw = document.getElementById('usernameInput').value;
     const username = sanitizeUsername(raw);
-    if (!username) { showLoginError('Enter a valid summoner name.'); return; }
+    if (!username) { showLoginError('Enter a valid username.'); return; }
 
     const btn = document.getElementById('loginBtn');
     btn.disabled = true;
     btn.innerHTML = '<span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>';
 
     try {
-      const snap = await db.ref(`users/${username}`).once('value');
+      const snap = await fbOnce(db.ref(`users/${username}`));
       if (!snap.exists()) {
         await db.ref(`users/${username}`).set({ username, joinedAt: Date.now() });
       }
-      await db.ref(`users/${username}/lastSeen`).set(Date.now());
+      // lastSeen is best-effort — don't block login on it
+      db.ref(`users/${username}/lastSeen`).set(Date.now()).catch(() => {});
 
       currentUser = username;
       localStorage.setItem(USER_KEY, username);
       enterApp();
     } catch(e) {
-      console.error(e);
-      showLoginError('Connection error. Check Firebase config.');
-      btn.disabled = false;
-      btn.textContent = 'Enter Your Name';
+      console.error('Login error:', e);
+      const msg = e.message.includes('timeout')
+        ? 'Timed out — check Firebase rules allow .read and .write'
+        : 'Connection error — check Firebase config';
+      showLoginError(msg);
+      resetLoginBtn();
     }
   }
 
@@ -1234,10 +1256,11 @@
 
   // ── Init ──────────────────────────────────────────────────────────────────
   (function init() {
+    // Pre-fill the last username but don't auto-login —
+    // auto-login caused the button to hang forever if Firebase was slow/blocked.
     const saved = localStorage.getItem(USER_KEY);
-    if (saved && db) {
+    if (saved) {
       document.getElementById('usernameInput').value = saved;
-      doLogin(); // auto-login
     }
   })();
   </script>
