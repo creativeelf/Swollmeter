@@ -463,7 +463,7 @@
       <div class="lol-divider" style="margin-bottom:24px;"><span>◆</span></div>
 
       <div style="font-size:9px; font-weight:700; color:var(--l3); letter-spacing:0.25em; text-transform:uppercase; font-family:'Cinzel',serif; margin-bottom:10px;">
-        Summoner Name
+        Your Name
       </div>
 
       <input type="text" id="usernameInput" class="login-input"
@@ -475,13 +475,13 @@
       <div id="loginError" style="font-size:10px; color:var(--red-light); font-family:'Cinzel',serif; letter-spacing:0.08em; min-height:20px; margin-top:8px;"></div>
 
       <button class="login-btn" id="loginBtn" onclick="doLogin()" style="margin-top:8px;">
-        Enter the Rift
+        Enter Your Name
       </button>
 
       <div class="lol-divider" style="margin-top:24px;"><span>◆</span></div>
 
       <div style="font-size:9px; color:var(--l3); text-align:center; margin-top:14px; font-family:'Cinzel',serif; letter-spacing:0.12em; line-height:1.7;">
-        New summoners are auto-registered<br>All summoners are allies
+        New users are auto-registered<br>All users are friends
       </div>
     </div>
   </div>
@@ -559,8 +559,8 @@
     <!-- ── FRIENDS VIEW ── -->
     <div id="viewFriends" style="display:none;">
       <header style="padding: calc(var(--topbar-h) + env(safe-area-inset-top) + 20px) 20px 16px;">
-        <div class="lol-title" style="font-size:26px; margin-bottom:3px;">Allies</div>
-        <div class="lol-subtitle">All Summoners · Live Feed</div>
+        <div class="lol-title" style="font-size:26px; margin-bottom:3px;">Friends</div>
+        <div class="lol-subtitle">All Users · Live Feed</div>
         <div class="lol-divider" style="margin-top:14px;"><span>◆</span></div>
       </header>
       <div style="padding: 0 20px;">
@@ -601,7 +601,7 @@
           <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
           <path d="M21 21v-2a4 4 0 0 0-3-3.85"/>
         </svg>
-        Allies
+        Friends
       </button>
     </nav>
 
@@ -691,7 +691,9 @@
   let editId        = null;
   let deletePending = false;
   let historyOpen   = false;
-  let friendsListening = false;
+  let friendsListening   = false;
+  let userSessionsRef    = null;   // stored so we can .off() cleanly
+  let friendsRef         = null;
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function usernameColor(name) {
@@ -741,16 +743,14 @@
       console.error(e);
       showLoginError('Connection error. Check Firebase config.');
       btn.disabled = false;
-      btn.textContent = 'Enter the Rift';
+      btn.textContent = 'Enter Your Name';
     }
   }
 
   function doLogout() {
-    // Detach listeners
-    if (currentUser) {
-      db.ref('sessions').orderByChild('username').equalTo(currentUser).off();
-    }
-    db.ref('sessions').off();
+    // Detach listeners using stored refs so teardown is exact
+    if (userSessionsRef)  { userSessionsRef.off();  userSessionsRef  = null; }
+    if (friendsRef)       { friendsRef.off();        friendsRef       = null; }
     friendsListening = false;
     currentUser = null;
     sessions = [];
@@ -762,7 +762,7 @@
     document.getElementById('loginScreen').style.display = '';
     document.getElementById('usernameInput').value = '';
     document.getElementById('loginBtn').disabled = false;
-    document.getElementById('loginBtn').textContent = 'Enter the Rift';
+    document.getElementById('loginBtn').textContent = 'Enter Your Name';
   }
 
   function enterApp() {
@@ -786,30 +786,32 @@
 
   // ── Real-time listeners ───────────────────────────────────────────────────
   function startUserSessionsListener() {
-    db.ref('sessions').orderByChild('username').equalTo(currentUser)
-      .on('value', snap => {
-        sessions = [];
-        snap.forEach(child => sessions.push(child.val()));
-        sessions.sort((a, b) => new Date(a.date) - new Date(b.date));
+    userSessionsRef = db.ref('sessions').orderByChild('username').equalTo(currentUser);
+    userSessionsRef.on('value', snap => {
+      sessions = [];
+      snap.forEach(child => sessions.push(child.val()));
+      sessions.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-        if (currentView === 'log') {
-          renderHeatmap(); renderExercises();
-          if (historyOpen) renderHistory();
-        }
-        if (currentView === 'calendar') renderCalendar();
-      });
+      if (currentView === 'log') {
+        renderHeatmap(); renderExercises();
+        if (historyOpen) renderHistory();
+      }
+      if (currentView === 'calendar') renderCalendar();
+    });
   }
 
   function startFriendsListener() {
     if (friendsListening) return;
     friendsListening = true;
-    db.ref('sessions').orderByChild('date').limitToLast(100)
-      .on('value', snap => {
-        allSessions = [];
-        snap.forEach(child => allSessions.push(child.val()));
-        allSessions.reverse(); // most recent first
-        if (currentView === 'friends') renderFriends();
-      });
+    // Use plain .ref() — no orderByChild — to avoid needing a DB index.
+    // Sort client-side instead.
+    friendsRef = db.ref('sessions');
+    friendsRef.on('value', snap => {
+      allSessions = [];
+      snap.forEach(child => allSessions.push(child.val()));
+      allSessions.sort((a, b) => new Date(b.date) - new Date(a.date)); // newest first
+      if (currentView === 'friends') renderFriends();
+    });
   }
 
   // ── DB writes ─────────────────────────────────────────────────────────────
@@ -835,7 +837,18 @@
       document.getElementById(`tab-${t}`).classList.toggle('active', v === t));
 
     if (v === 'calendar') renderCalendar();
-    if (v === 'friends')  { startFriendsListener(); renderFriends(); }
+    if (v === 'friends') {
+      if (!friendsListening) {
+        // First open — show loading dots while Firebase fetches
+        document.getElementById('friendsFeed').innerHTML =
+          `<div style="text-align:center;padding:40px 0;">
+            <span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>
+           </div>`;
+        startFriendsListener(); // callback will call renderFriends() when data arrives
+      } else {
+        renderFriends(); // listener already active, data is fresh
+      }
+    }
   }
 
   // ── Heatmap ───────────────────────────────────────────────────────────────
@@ -1017,7 +1030,7 @@
       feed.innerHTML = `
         <div style="text-align:center;padding:40px 0;">
           <div style="font-size:24px;margin-bottom:12px;">⚔️</div>
-          <div style="font-size:13px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.1em;">No allies have trained yet</div>
+          <div style="font-size:13px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.1em;">No friends have trained yet</div>
           <div style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;margin-top:6px;opacity:0.6;">Be the first to log a session</div>
         </div>`;
       return;
