@@ -749,11 +749,13 @@
     btn.innerHTML = '<span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>';
 
     try {
+      // Only await the read — if this resolves we know Firebase is reachable
       const snap = await fbOnce(db.ref(`users/${username}`));
+
+      // Fire-and-forget all writes — never await them so they can't hang login
       if (!snap.exists()) {
-        await db.ref(`users/${username}`).set({ username, joinedAt: Date.now() });
+        db.ref(`users/${username}`).set({ username, joinedAt: Date.now() }).catch(() => {});
       }
-      // lastSeen is best-effort — don't block login on it
       db.ref(`users/${username}/lastSeen`).set(Date.now()).catch(() => {});
 
       currentUser = username;
