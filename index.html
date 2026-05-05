@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SWOLLMETER</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --neon: #00ff41;
+      --neon-dim: #00cc33;
+      --bg: #060606;
+      --surface: #0d0d0d;
+      --surface2: #141414;
+      --border: #1c1c1c;
+      --text-dim: #3a3a3a;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: var(--bg);
+      color: var(--neon);
+      font-family: 'Share Tech Mono', monospace;
+      min-height: 100vh;
+      overscroll-behavior: none;
+      padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    }
+
+    .font-orb { font-family: 'Orbitron', monospace; }
+
+    /* ── Scan line ── */
+    .scan-line {
+      position: fixed; top: -2px; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent 0%, var(--neon) 50%, transparent 100%);
+      animation: scan 4s linear infinite; opacity: 0.15;
+      pointer-events: none; z-index: 9999;
+    }
+    @keyframes scan { from { top: -2px; } to { top: 100vh; } }
+
+    /* ── Flash overlay ── */
+    #flashOverlay {
+      position: fixed; inset: 0; pointer-events: none; z-index: 9998; opacity: 0;
+    }
+    #flashOverlay.active { animation: screenFlash 0.45s ease-out forwards; }
+    @keyframes screenFlash {
+      0%   { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    .neon-text {
+      color: var(--neon);
+      text-shadow: 0 0 8px var(--neon), 0 0 20px rgba(0,255,65,0.4);
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+    .card:hover { border-color: rgba(0,255,65,0.18); }
+    .card.logged { animation: cardGlow 0.7s ease-out forwards; }
+    @keyframes cardGlow {
+      0%   { border-color: var(--neon); box-shadow: 0 0 0 0 rgba(0,255,65,0.7); transform: scale(1); }
+      35%  { border-color: var(--neon); box-shadow: 0 0 24px 6px rgba(0,255,65,0.3); transform: scale(1.012); }
+      100% { border-color: var(--border); box-shadow: none; transform: scale(1); }
+    }
+
+    /* ── Inputs ── */
+    input[type="number"] {
+      background: #0a0a0a; color: var(--neon);
+      border: 1px solid #222; outline: none;
+      font-family: 'Share Tech Mono', monospace;
+      -moz-appearance: textfield; width: 100%; text-align: center;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"]:focus {
+      border-color: var(--neon); box-shadow: 0 0 0 2px rgba(0,255,65,0.15);
+    }
+
+    /* ── Stepper buttons ── */
+    .step-btn {
+      background: var(--surface2); color: #666; border: 1px solid #222;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all 0.12s; user-select: none; touch-action: manipulation;
+      font-size: 20px; min-width: 40px; height: 40px;
+    }
+    .step-btn:active { background: rgba(0,255,65,0.12); color: var(--neon); border-color: var(--neon); }
+
+    /* ── Main log button ── */
+    #mainLogBtn {
+      background: transparent; color: var(--neon);
+      border: 1px solid var(--neon);
+      font-family: 'Orbitron', monospace; font-weight: 700;
+      letter-spacing: 0.15em; cursor: pointer; transition: all 0.2s;
+      border-radius: 8px; position: relative; overflow: hidden;
+      touch-action: manipulation;
+    }
+    #mainLogBtn::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, transparent 40%, rgba(0,255,65,0.04) 100%);
+    }
+    #mainLogBtn:hover { background: rgba(0,255,65,0.07); box-shadow: 0 0 20px rgba(0,255,65,0.35); }
+    #mainLogBtn:active { transform: scale(0.98); }
+    #mainLogBtn.firing { animation: btnFire 1.4s ease-out forwards; }
+    @keyframes btnFire {
+      0%   { background: rgba(0,255,65,0.25); box-shadow: 0 0 30px rgba(0,255,65,0.6); }
+      60%  { background: rgba(0,255,65,0.08); box-shadow: 0 0 10px rgba(0,255,65,0.2); }
+      100% { background: transparent; box-shadow: none; }
+    }
+
+    /* ── Heatmap ── */
+    .hm-day {
+      flex: 1; aspect-ratio: 1; border: 1px solid var(--border); border-radius: 5px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 2px; transition: all 0.3s; max-width: 44px;
+    }
+    .hm-day .hm-label { font-size: 8px; color: var(--text-dim); letter-spacing: 0.05em; }
+    .hm-day .hm-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); }
+    .hm-day.active { border-color: var(--neon); background: rgba(0,255,65,0.08); box-shadow: 0 0 8px rgba(0,255,65,0.25); }
+    .hm-day.active .hm-label { color: var(--neon-dim); }
+    .hm-day.active .hm-dot { background: var(--neon); box-shadow: 0 0 5px var(--neon); }
+    .hm-day.today:not(.active) { border-color: #2a2a2a; }
+    .hm-day.today .hm-label { color: #555; }
+
+    .neon-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(0,255,65,0.25), transparent); }
+
+    /* ── Edit button ── */
+    .edit-btn {
+      font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 0.1em;
+      color: #444; background: transparent; border: 1px solid #2a2a2a;
+      padding: 3px 10px; border-radius: 3px; cursor: pointer; transition: all 0.15s;
+      touch-action: manipulation;
+    }
+    .edit-btn:hover, .edit-btn:active { color: var(--neon); border-color: var(--neon); }
+
+    /* ── Delete button (inline on cards) ── */
+    .del-btn {
+      font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 0.1em;
+      color: #444; background: transparent; border: 1px solid #2a2a2a;
+      padding: 3px 10px; border-radius: 3px; cursor: pointer; transition: all 0.15s;
+      touch-action: manipulation;
+    }
+    .del-btn:hover { color: #ff4444; border-color: #ff4444; }
+    .del-btn.confirm { color: #ff4444; border-color: #ff4444; background: rgba(255,68,68,0.08); }
+
+    /* ── History card ── */
+    .history-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+
+    /* ── Count badge ── */
+    .count-badge {
+      font-size: 8px; background: var(--neon); color: #000;
+      border-radius: 3px; padding: 1px 4px;
+      font-family: 'Orbitron', monospace; font-weight: 900; line-height: 1.4;
+    }
+
+    /* ════ BOTTOM NAV ════ */
+    #bottomNav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #080808;
+      border-top: 1px solid #161616;
+      display: flex;
+      padding-bottom: env(safe-area-inset-bottom);
+      z-index: 500;
+    }
+    .nav-tab {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px; padding: 10px 0;
+      color: #333; background: transparent; border: none;
+      font-family: 'Orbitron', monospace; font-size: 8px;
+      letter-spacing: 0.18em; cursor: pointer; transition: color 0.2s;
+      touch-action: manipulation;
+    }
+    .nav-tab svg { width: 18px; height: 18px; transition: filter 0.2s; }
+    .nav-tab.active { color: var(--neon); }
+    .nav-tab.active svg { filter: drop-shadow(0 0 4px var(--neon)); }
+
+    /* ════ CALENDAR VIEW ════ */
+    #viewCalendar { display: none; }
+    #viewCalendar.active { display: block; }
+
+    .cal-month-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 4px; margin-bottom: 16px;
+    }
+    .cal-nav-btn {
+      background: transparent; color: #555; border: 1px solid #1c1c1c;
+      width: 36px; height: 36px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 16px; transition: all 0.15s;
+      touch-action: manipulation;
+    }
+    .cal-nav-btn:hover, .cal-nav-btn:active { color: var(--neon); border-color: var(--neon); }
+
+    .cal-dow-header {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 3px; margin-bottom: 3px;
+    }
+    .cal-dow-header span {
+      text-align: center; font-size: 9px; letter-spacing: 0.1em;
+      color: var(--text-dim); padding: 4px 0;
+    }
+
+    #calGrid {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
+    }
+
+    .cal-cell {
+      aspect-ratio: 1; border-radius: 6px; border: 1px solid transparent;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.15s; position: relative;
+      touch-action: manipulation; user-select: none;
+    }
+    .cal-cell.empty { cursor: default; pointer-events: none; }
+    .cal-cell .cn { font-size: 13px; color: #444; line-height: 1; }
+    .cal-cell .cd { width: 5px; height: 5px; border-radius: 50%; margin-top: 3px; background: transparent; }
+
+    .cal-cell.has-session { background: rgba(0,255,65,0.05); }
+    .cal-cell.has-session .cn { color: #888; }
+    .cal-cell.has-session .cd { background: var(--neon-dim); box-shadow: 0 0 4px var(--neon-dim); }
+
+    .cal-cell.is-today:not(.is-selected) { border-color: rgba(0,255,65,0.25); }
+    .cal-cell.is-today .cn { color: var(--neon); }
+
+    .cal-cell.is-selected {
+      background: rgba(0,255,65,0.12); border-color: var(--neon);
+      box-shadow: 0 0 10px rgba(0,255,65,0.25);
+    }
+    .cal-cell.is-selected .cn { color: var(--neon); font-weight: bold; }
+
+    .cal-cell:not(.empty):not(.is-selected):active { transform: scale(0.88); }
+
+    .multi-badge {
+      position: absolute; top: 3px; right: 3px;
+      font-size: 7px; font-family: 'Orbitron', monospace; font-weight: 900;
+      background: var(--neon); color: #000;
+      border-radius: 2px; padding: 0 3px; line-height: 1.5;
+    }
+
+    /* Day panel */
+    #dayPanel {
+      margin-top: 16px; padding-top: 14px;
+      border-top: 1px solid #161616;
+      animation: fadeIn 0.2s ease-out;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    /* ════ EDIT MODAL ════ */
+    #editModal {
+      position: fixed; inset: 0; z-index: 800;
+      background: rgba(0,0,0,0.82);
+      backdrop-filter: blur(6px);
+      display: none; align-items: flex-end;
+    }
+    #editModal.open { display: flex; }
+
+    .modal-sheet {
+      width: 100%; background: #0c0c0c;
+      border-top: 1px solid var(--neon);
+      border-radius: 18px 18px 0 0;
+      max-height: 88vh; overflow-y: auto;
+      padding-bottom: env(safe-area-inset-bottom);
+      animation: slideUp 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    .modal-handle {
+      width: 36px; height: 4px; background: #2a2a2a;
+      border-radius: 2px; margin: 12px auto 0;
+    }
+
+    .modal-footer {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+      padding: 16px;
+    }
+    .modal-btn {
+      font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 0.15em;
+      padding: 12px 4px; border-radius: 6px; cursor: pointer;
+      border: 1px solid; transition: all 0.15s; touch-action: manipulation;
+    }
+    .modal-btn.cancel-btn { color: #444; border-color: #2a2a2a; background: transparent; }
+    .modal-btn.cancel-btn:hover { color: #777; border-color: #444; }
+    .modal-btn.save-btn { color: var(--neon); border-color: var(--neon); background: transparent; }
+    .modal-btn.save-btn:hover { background: rgba(0,255,65,0.1); }
+    .modal-btn.delete-btn { color: #444; border-color: #2a2a2a; background: transparent; }
+    .modal-btn.delete-btn.confirm { color: #ff4444; border-color: #ff4444; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #1a1a1a; border-radius: 2px; }
+  </style>
+</head>
+<body>
+  <div class="scan-line"></div>
+  <div id="flashOverlay"></div>
+
+  <!-- ════════════════════════════════════════
+       LOG VIEW
+  ════════════════════════════════════════ -->
+  <div id="viewLog">
+
+    <header class="px-4 pt-10 pb-5">
+      <div class="flex items-start justify-between mb-5">
+        <div>
+          <h1 class="font-orb text-2xl font-black neon-text tracking-widest leading-none">SWOLLMETER</h1>
+          <p class="text-xs mt-1" style="color:#333; letter-spacing:0.2em;">GYM PROGRESS TRACKER</p>
+        </div>
+        <div class="text-right">
+          <div class="text-xs mb-0.5" style="color:#333; letter-spacing:0.15em;">THIS WEEK</div>
+          <div id="weekCount" class="font-orb text-4xl font-black neon-text leading-none">0</div>
+          <div class="text-xs" style="color:#333; letter-spacing:0.15em;">SESSIONS</div>
+        </div>
+      </div>
+      <div class="flex gap-1.5 justify-between" id="heatmap"></div>
+    </header>
+
+    <div class="mx-4 neon-divider mb-5"></div>
+
+    <main class="px-4 space-y-3" id="exerciseList"></main>
+
+    <div class="px-4 mt-6">
+      <button id="mainLogBtn" class="w-full py-4 text-sm" onclick="logSession()">
+        [ LOG SESSION ]
+      </button>
+    </div>
+
+    <div class="px-4 mt-7 mb-2">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs" style="color:#333; letter-spacing:0.2em;">RECENT SESSIONS</span>
+        <button onclick="toggleHistory()" id="historyToggle"
+          class="text-xs transition-colors" style="color:#444; letter-spacing:0.15em;">SHOW ▾</button>
+      </div>
+      <div id="historyPanel" class="hidden space-y-2"></div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════
+       CALENDAR VIEW
+  ════════════════════════════════════════ -->
+  <div id="viewCalendar">
+
+    <header class="px-4 pt-10 pb-4">
+      <h1 class="font-orb text-xl font-black neon-text tracking-widest leading-none mb-1">CALENDAR</h1>
+      <p class="text-xs" style="color:#333; letter-spacing:0.2em;">SESSION HISTORY</p>
+    </header>
+
+    <div class="mx-4 neon-divider mb-5"></div>
+
+    <div class="px-4">
+      <!-- Month nav -->
+      <div class="cal-month-header">
+        <button class="cal-nav-btn" onclick="shiftMonth(-1)">‹</button>
+        <span id="calMonthLabel" class="font-orb text-sm neon-text tracking-widest"></span>
+        <button class="cal-nav-btn" onclick="shiftMonth(1)">›</button>
+      </div>
+
+      <!-- Day-of-week header -->
+      <div class="cal-dow-header">
+        <span>SUN</span><span>MON</span><span>TUE</span>
+        <span>WED</span><span>THU</span><span>FRI</span><span>SAT</span>
+      </div>
+
+      <!-- Grid -->
+      <div id="calGrid"></div>
+
+      <!-- Selected day detail -->
+      <div id="dayPanel"></div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════
+       BOTTOM NAV
+  ════════════════════════════════════════ -->
+  <nav id="bottomNav">
+    <button class="nav-tab active" id="tab-log" onclick="setView('log')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 4h4v4H6zM14 4h4v4h-4zM6 10h4v4H6zM14 10h4v4h-4zM6 16h4v4H6zM14 16h4v4h-4z"/>
+      </svg>
+      LOG
+    </button>
+    <button class="nav-tab" id="tab-calendar" onclick="setView('calendar')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <path d="M16 2v4M8 2v4M3 10h18"/>
+      </svg>
+      CALENDAR
+    </button>
+  </nav>
+
+  <!-- ════════════════════════════════════════
+       EDIT MODAL
+  ════════════════════════════════════════ -->
+  <div id="editModal" onclick="if(event.target===this)closeEdit()">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+
+      <!-- Header -->
+      <div class="flex items-center justify-between px-4 pt-4 pb-3">
+        <div>
+          <div class="font-orb text-xs neon-text tracking-widest">EDIT SESSION</div>
+          <div id="editDateLabel" class="text-xs mt-1" style="color:#444; letter-spacing:0.1em;"></div>
+        </div>
+        <button onclick="closeEdit()" style="color:#444; font-size:18px; background:none; border:none; cursor:pointer; padding:4px 8px;">✕</button>
+      </div>
+
+      <div class="mx-4 neon-divider mb-4"></div>
+
+      <!-- Exercise inputs -->
+      <div id="editExercises" class="px-4 space-y-4"></div>
+
+      <!-- Footer buttons -->
+      <div class="modal-footer">
+        <button id="deleteBtn" class="modal-btn delete-btn" onclick="deleteSessionById()">DELETE</button>
+        <button class="modal-btn cancel-btn" onclick="closeEdit()">CANCEL</button>
+        <button class="modal-btn save-btn" onclick="saveEdit()">SAVE</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ── Config ────────────────────────────────────────────────────────────────
+  const EXERCISES = [
+    { name: 'Chest Press',    weightStep: 5,  repsStep: 1 },
+    { name: 'Seated Row',     weightStep: 5,  repsStep: 1 },
+    { name: 'Machine Crunch', weightStep: 5,  repsStep: 1 },
+    { name: 'Leg Press',      weightStep: 10, repsStep: 1 },
+    { name: 'Dumbbell Work',  weightStep: 5,  repsStep: 1 },
+  ];
+  const DAYS_SHORT  = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const MONTH_NAMES = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE',
+                       'JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  const KEY = 'swollmeter_v2';
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let sessions       = JSON.parse(localStorage.getItem(KEY) || '[]');
+  let currentView    = 'log';
+  let calYear        = new Date().getFullYear();
+  let calMonth       = new Date().getMonth();
+  let selectedDay    = null;   // { year, month, day }
+  let editId         = null;
+  let deletePending  = false;
+  let historyOpen    = false;
+
+  function save() { localStorage.setItem(KEY, JSON.stringify(sessions)); }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function getLastEntry(name) {
+    for (let i = sessions.length - 1; i >= 0; i--) {
+      const e = sessions[i].entries[name];
+      if (e && (e.weight > 0 || e.reps > 0)) return e;
+    }
+    return null;
+  }
+
+  function getWeekSessions() {
+    const now = new Date();
+    const sow = new Date(now);
+    sow.setDate(now.getDate() - now.getDay());
+    sow.setHours(0, 0, 0, 0);
+    return sessions.filter(s => new Date(s.date) >= sow);
+  }
+
+  function flash(color = 'rgba(0,255,65,0.09)') {
+    const ov = document.getElementById('flashOverlay');
+    ov.style.background = color;
+    ov.classList.remove('active');
+    void ov.offsetWidth;
+    ov.classList.add('active');
+  }
+
+  // ── View switching ────────────────────────────────────────────────────────
+  function setView(v) {
+    currentView = v;
+    document.getElementById('viewLog').style.display      = v === 'log'      ? '' : 'none';
+    document.getElementById('viewCalendar').style.display = v === 'calendar' ? '' : 'none';
+    document.getElementById('tab-log').classList.toggle('active',      v === 'log');
+    document.getElementById('tab-calendar').classList.toggle('active', v === 'calendar');
+    if (v === 'calendar') renderCalendar();
+  }
+
+  // ── Heatmap ───────────────────────────────────────────────────────────────
+  function renderHeatmap() {
+    const el    = document.getElementById('heatmap');
+    const today = new Date().getDay();
+    const week  = getWeekSessions();
+    const byDay = {};
+    week.forEach(s => { const d = new Date(s.date).getDay(); byDay[d] = (byDay[d] || 0) + 1; });
+
+    el.innerHTML = '';
+    DAYS_SHORT.forEach((label, i) => {
+      const isActive = (byDay[i] || 0) > 0;
+      const count    = byDay[i] || 0;
+      const div = document.createElement('div');
+      div.className = `hm-day ${isActive ? 'active' : ''} ${i === today ? 'today' : ''}`;
+      div.innerHTML = `
+        <span class="hm-label">${label}</span>
+        <span class="hm-dot"></span>
+        ${count > 1 ? `<span class="count-badge">${count}</span>` : ''}
+      `;
+      el.appendChild(div);
+    });
+
+    document.getElementById('weekCount').textContent = week.length;
+  }
+
+  // ── Exercise cards ────────────────────────────────────────────────────────
+  function renderExercises() {
+    const list = document.getElementById('exerciseList');
+    list.innerHTML = '';
+
+    EXERCISES.forEach(({ name, weightStep, repsStep }, idx) => {
+      const last      = getLastEntry(name);
+      const hasLast   = last !== null;
+      const lastLabel = hasLast ? `LAST: ${last.weight} LB &times; ${last.reps} REPS` : 'NO DATA YET';
+      const lastColor = hasLast ? 'var(--neon-dim)' : 'var(--text-dim)';
+
+      const card = document.createElement('div');
+      card.className = 'card p-4';
+      card.id = `card-${idx}`;
+      card.innerHTML = `
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <div class="text-sm font-bold" style="color:#d0d0d0; letter-spacing:0.1em;">${name.toUpperCase()}</div>
+            <div class="text-xs mt-1" style="color:${lastColor}; letter-spacing:0.12em;">${lastLabel}</div>
+          </div>
+          <span class="font-orb text-xs" style="color:#222;">#${String(idx+1).padStart(2,'0')}</span>
+        </div>
+        <div class="flex gap-3">
+          <div class="flex-1">
+            <div class="text-xs mb-1" style="color:#333; letter-spacing:0.15em;">WEIGHT (LB)</div>
+            <div class="flex h-10">
+              <button class="step-btn rounded-l" style="border-right:none;" onclick="step('w${idx}',-${weightStep})">−</button>
+              <input type="number" id="w${idx}" min="0" step="${weightStep}" placeholder="0"
+                value="${hasLast ? last.weight : ''}" style="border-radius:0; height:40px; font-size:15px;">
+              <button class="step-btn rounded-r" style="border-left:none;" onclick="step('w${idx}',${weightStep})">+</button>
+            </div>
+          </div>
+          <div class="flex-1">
+            <div class="text-xs mb-1" style="color:#333; letter-spacing:0.15em;">REPS</div>
+            <div class="flex h-10">
+              <button class="step-btn rounded-l" style="border-right:none;" onclick="step('r${idx}',-${repsStep})">−</button>
+              <input type="number" id="r${idx}" min="0" step="${repsStep}" placeholder="0"
+                value="${hasLast ? last.reps : ''}" style="border-radius:0; height:40px; font-size:15px;">
+              <button class="step-btn rounded-r" style="border-left:none;" onclick="step('r${idx}',${repsStep})">+</button>
+            </div>
+          </div>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  function step(id, delta) {
+    const el = document.getElementById(id);
+    el.value = Math.max(0, (parseFloat(el.value) || 0) + delta);
+  }
+
+  // ── Log session ───────────────────────────────────────────────────────────
+  function logSession() {
+    const entries = {};
+    let hasData   = false;
+
+    EXERCISES.forEach(({ name }, idx) => {
+      const w = parseFloat(document.getElementById(`w${idx}`).value) || 0;
+      const r = parseInt(document.getElementById(`r${idx}`).value)   || 0;
+      entries[name] = { weight: w, reps: r };
+      if (w > 0 || r > 0) hasData = true;
+    });
+
+    if (!hasData) { flash('rgba(255,40,40,0.08)'); return; }
+
+    sessions.push({ id: Date.now(), date: new Date().toISOString(), entries });
+    save();
+
+    flash();
+    EXERCISES.forEach((_, idx) => {
+      const card = document.getElementById(`card-${idx}`);
+      if (!card) return;
+      setTimeout(() => { card.classList.remove('logged'); void card.offsetWidth; card.classList.add('logged'); }, idx * 70);
+    });
+    const btn = document.getElementById('mainLogBtn');
+    btn.textContent = '[ ✓ LOGGED ]';
+    btn.classList.add('firing');
+    setTimeout(() => { btn.classList.remove('firing'); btn.textContent = '[ LOG SESSION ]'; }, 1600);
+
+    renderHeatmap();
+    renderExercises();
+    if (historyOpen) renderHistory();
+  }
+
+  // ── History ───────────────────────────────────────────────────────────────
+  function toggleHistory() {
+    historyOpen = !historyOpen;
+    document.getElementById('historyPanel').classList.toggle('hidden', !historyOpen);
+    document.getElementById('historyToggle').textContent = historyOpen ? 'HIDE ▴' : 'SHOW ▾';
+    if (historyOpen) renderHistory();
+  }
+
+  function sessionCardHTML(s, showEditBtn = true) {
+    const d       = new Date(s.date);
+    const dateStr = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+    const timeStr = d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+    const rows    = EXERCISES.map(({ name }) => {
+      const e = s.entries[name];
+      if (!e || (e.weight === 0 && e.reps === 0)) return '';
+      return `<div class="flex justify-between"><span style="color:#333;">${name}</span><span style="color:var(--neon-dim);">${e.weight}lb × ${e.reps}</span></div>`;
+    }).filter(Boolean).join('');
+
+    return `
+      <div class="history-card p-3">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs font-bold" style="color:var(--neon-dim); letter-spacing:0.1em;">${dateStr} · ${timeStr}</span>
+          ${showEditBtn ? `
+          <div class="flex gap-2">
+            <button class="del-btn" id="del-${s.id}" onclick="deleteCard(${s.id}, this)">DELETE</button>
+            <button class="edit-btn" onclick="openEdit(${s.id})">EDIT</button>
+          </div>` : ''}
+        </div>
+        <div class="space-y-1 text-xs tracking-wider">${rows || '<span style="color:#2a2a2a;">empty</span>'}</div>
+      </div>`;
+  }
+
+  function renderHistory() {
+    const panel  = document.getElementById('historyPanel');
+    const recent = [...sessions].reverse().slice(0, 15);
+    panel.innerHTML = recent.length === 0
+      ? '<div class="text-xs text-center py-4" style="color:#333; letter-spacing:0.15em;">NO SESSIONS YET</div>'
+      : recent.map(s => sessionCardHTML(s)).join('');
+  }
+
+  // ── Calendar ──────────────────────────────────────────────────────────────
+  function shiftMonth(delta) {
+    calMonth += delta;
+    if (calMonth > 11) { calMonth = 0; calYear++; }
+    if (calMonth < 0)  { calMonth = 11; calYear--; }
+    selectedDay = null;
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    document.getElementById('calMonthLabel').textContent = `${MONTH_NAMES[calMonth]} ${calYear}`;
+
+    const now          = new Date();
+    const daysInMonth  = new Date(calYear, calMonth + 1, 0).getDate();
+    const firstWeekday = new Date(calYear, calMonth, 1).getDay();
+
+    // Group sessions by day-of-month for this month
+    const byDay = {};
+    sessions.forEach(s => {
+      const d = new Date(s.date);
+      if (d.getFullYear() === calYear && d.getMonth() === calMonth) {
+        const day = d.getDate();
+        byDay[day] = (byDay[day] || 0) + 1;
+      }
+    });
+
+    const grid = document.getElementById('calGrid');
+    grid.innerHTML = '';
+
+    // Empty offset cells
+    for (let i = 0; i < firstWeekday; i++) {
+      const el = document.createElement('div');
+      el.className = 'cal-cell empty';
+      grid.appendChild(el);
+    }
+
+    // Day cells
+    for (let d = 1; d <= daysInMonth; d++) {
+      const isToday    = now.getFullYear() === calYear && now.getMonth() === calMonth && now.getDate() === d;
+      const count      = byDay[d] || 0;
+      const isSelected = selectedDay && selectedDay.year === calYear && selectedDay.month === calMonth && selectedDay.day === d;
+
+      const el = document.createElement('div');
+      el.className = [
+        'cal-cell',
+        count > 0   ? 'has-session' : '',
+        isToday     ? 'is-today'    : '',
+        isSelected  ? 'is-selected' : '',
+      ].join(' ');
+      el.innerHTML = `
+        <span class="cn">${d}</span>
+        <span class="cd"></span>
+        ${count > 1 ? `<span class="multi-badge">${count}</span>` : ''}
+      `;
+      el.onclick = () => selectCalDay(calYear, calMonth, d);
+      grid.appendChild(el);
+    }
+
+    renderDayPanel();
+  }
+
+  function selectCalDay(year, month, day) {
+    if (selectedDay && selectedDay.year === year && selectedDay.month === month && selectedDay.day === day) {
+      selectedDay = null;
+    } else {
+      selectedDay = { year, month, day };
+    }
+    renderCalendar();
+  }
+
+  function renderDayPanel() {
+    const panel = document.getElementById('dayPanel');
+    if (!selectedDay) { panel.innerHTML = ''; return; }
+
+    const { year, month, day } = selectedDay;
+    const daySessions = sessions.filter(s => {
+      const d = new Date(s.date);
+      return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+    });
+
+    const dateStr = new Date(year, month, day).toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+
+    if (daySessions.length === 0) {
+      panel.innerHTML = `<div class="text-xs text-center py-5" style="color:#2a2a2a; letter-spacing:0.15em;">NO SESSIONS — ${dateStr.toUpperCase()}</div>`;
+      return;
+    }
+
+    panel.innerHTML = `
+      <div class="text-xs mb-3" style="color:#444; letter-spacing:0.15em;">${dateStr.toUpperCase()}</div>
+      <div class="space-y-2">${daySessions.map(s => sessionCardHTML(s)).join('')}</div>
+    `;
+  }
+
+  // ── Edit modal ────────────────────────────────────────────────────────────
+  function openEdit(sessionId) {
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    editId        = sessionId;
+    deletePending = false;
+
+    const d = new Date(session.date);
+    document.getElementById('editDateLabel').textContent =
+      d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' }) +
+      '  ·  ' +
+      d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+
+    // Build exercise inputs
+    const container = document.getElementById('editExercises');
+    container.innerHTML = EXERCISES.map(({ name, weightStep, repsStep }, idx) => {
+      const entry = session.entries[name] || { weight: 0, reps: 0 };
+      return `
+        <div>
+          <div class="text-xs mb-2" style="color:#555; letter-spacing:0.15em;">${name.toUpperCase()}</div>
+          <div class="flex gap-3">
+            <div class="flex-1">
+              <div class="text-xs mb-1" style="color:#2a2a2a; letter-spacing:0.12em;">WEIGHT (LB)</div>
+              <div class="flex h-10">
+                <button class="step-btn rounded-l" style="border-right:none;" onclick="step('ew${idx}',-${weightStep})">−</button>
+                <input type="number" id="ew${idx}" min="0" step="${weightStep}"
+                  value="${entry.weight || ''}" placeholder="0"
+                  style="border-radius:0; height:40px; font-size:14px;">
+                <button class="step-btn rounded-r" style="border-left:none;" onclick="step('ew${idx}',${weightStep})">+</button>
+              </div>
+            </div>
+            <div class="flex-1">
+              <div class="text-xs mb-1" style="color:#2a2a2a; letter-spacing:0.12em;">REPS</div>
+              <div class="flex h-10">
+                <button class="step-btn rounded-l" style="border-right:none;" onclick="step('er${idx}',-${repsStep})">−</button>
+                <input type="number" id="er${idx}" min="0" step="${repsStep}"
+                  value="${entry.reps || ''}" placeholder="0"
+                  style="border-radius:0; height:40px; font-size:14px;">
+                <button class="step-btn rounded-r" style="border-left:none;" onclick="step('er${idx}',${repsStep})">+</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Reset delete button
+    const delBtn = document.getElementById('deleteBtn');
+    delBtn.textContent = 'DELETE';
+    delBtn.classList.remove('confirm');
+
+    document.getElementById('editModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeEdit() {
+    editId = null;
+    deletePending = false;
+    document.getElementById('editModal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function saveEdit() {
+    if (!editId) return;
+    const session = sessions.find(s => s.id === editId);
+    if (!session) return;
+
+    EXERCISES.forEach(({ name }, idx) => {
+      session.entries[name] = {
+        weight: parseFloat(document.getElementById(`ew${idx}`).value) || 0,
+        reps:   parseInt(document.getElementById(`er${idx}`).value)   || 0,
+      };
+    });
+
+    save();
+    closeEdit();
+    flash();
+    refreshAll();
+  }
+
+  function deleteSessionById() {
+    if (!editId) return;
+    if (!deletePending) {
+      deletePending = true;
+      const btn = document.getElementById('deleteBtn');
+      btn.textContent = 'CONFIRM?';
+      btn.classList.add('confirm');
+      return;
+    }
+    sessions = sessions.filter(s => s.id !== editId);
+    save();
+    closeEdit();
+    refreshAll();
+  }
+
+  function deleteCard(sessionId, btn) {
+    if (!btn.classList.contains('confirm')) {
+      btn.classList.add('confirm');
+      btn.textContent = 'CONFIRM?';
+      setTimeout(() => { if (btn.classList.contains('confirm')) { btn.classList.remove('confirm'); btn.textContent = 'DELETE'; } }, 2500);
+      return;
+    }
+    sessions = sessions.filter(s => s.id !== sessionId);
+    save();
+    refreshAll();
+  }
+
+  function refreshAll() {
+    renderHeatmap();
+    renderExercises();
+    if (historyOpen) renderHistory();
+    if (currentView === 'calendar') renderCalendar();
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  setView('log');
+  renderHeatmap();
+  renderExercises();
+  </script>
+</body>
+</html>
