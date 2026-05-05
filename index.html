@@ -677,6 +677,7 @@
   const MONTH_NAMES = ['January','February','March','April','May','June',
                        'July','August','September','October','November','December'];
   const USER_KEY    = 'swollmeter_user';
+  const ADMIN_USER  = 'admin';   // special account with full edit/delete access
   // Gold palette for user avatars (cycled via username hash)
   const AVATAR_COLORS = ['#C89B3C','#0BC4E3','#00C781','#E84545','#AF52DE','#E67E22','#3498DB','#F39C12'];
 
@@ -783,12 +784,15 @@
   }
 
   function enterApp() {
-    const color   = usernameColor(currentUser);
+    const isAdmin = currentUser === ADMIN_USER;
+    const color   = isAdmin ? '#C8291C' : usernameColor(currentUser);
     const initial = currentUser[0].toUpperCase();
     const av = document.getElementById('topBarAvatar');
     av.style.background = color;
     av.textContent = initial;
-    document.getElementById('topBarName').textContent = currentUser;
+    document.getElementById('topBarName').innerHTML = isAdmin
+      ? `${currentUser}&nbsp;<span style="font-size:8px;font-weight:700;color:var(--red-light);letter-spacing:0.18em;border:1px solid rgba(200,41,28,0.5);padding:2px 5px;vertical-align:middle;">ADMIN</span>`
+      : currentUser;
 
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = '';
@@ -989,15 +993,23 @@
     const headerRow = showUser ? (() => {
       const color = usernameColor(s.username || '?');
       const initial = (s.username||'?')[0].toUpperCase();
+      const isAdmin = currentUser === ADMIN_USER;
+      // Admin sees edit/delete on every card; normal users only see them on their own (handled below)
+      const adminControls = (isAdmin || isMe) ? `
+        <div style="display:flex; gap:6px; flex-shrink:0; margin-left:auto;">
+          <button class="btn-del" id="del-${s.id}" onclick="deleteCard(${s.id},this)">Delete</button>
+          <button class="btn-edit" onclick="openEdit(${s.id})">Edit</button>
+        </div>` : '';
       return `
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
           <div class="friend-avatar" style="background:${color};">${initial}</div>
-          <div>
+          <div style="flex:1; min-width:0;">
             <div style="font-size:13px; font-weight:700; font-family:'Cinzel',serif; color:${isMe?'var(--gold)':'var(--l2)'};">
               ${s.username||'unknown'}${isMe ? '&nbsp;<span style="font-size:9px;color:var(--l3);">(you)</span>' : ''}
             </div>
             <div style="font-size:10px; color:var(--l3); font-family:'Cinzel',serif; letter-spacing:0.06em;">${dateStr} · ${timeStr}</div>
           </div>
+          ${adminControls}
         </div>`;
     })() : `
       <div style="display:flex; justify-content:space-between; align-items:center; ${rows?'margin-bottom:10px;':''}">
@@ -1111,7 +1123,9 @@
 
   // ── Edit modal ────────────────────────────────────────────────────────────
   function openEdit(sessionId) {
-    const session = sessions.find(s => s.id === sessionId);
+    // Admin can edit any session; normal users only their own
+    const pool = currentUser === ADMIN_USER ? allSessions : sessions;
+    const session = pool.find(s => s.id === sessionId);
     if (!session) return;
     editId = sessionId; deletePending = false;
 
@@ -1121,7 +1135,7 @@
       ' · ' + d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
 
     document.getElementById('editExercises').innerHTML = EXERCISES.map(({ name, emoji, bg, weightStep, repsStep }, idx) => {
-      const e = session.entries[name] || { weight:0, reps:0 };
+      const e = (session.entries || {})[name] || { weight:0, reps:0 };
       return `
         <div>
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
@@ -1164,7 +1178,8 @@
 
   function saveEdit() {
     if (!editId) return;
-    const session = sessions.find(s => s.id === editId);
+    const pool = currentUser === ADMIN_USER ? allSessions : sessions;
+    const session = pool.find(s => s.id === editId);
     if (!session) return;
     const entries = {};
     EXERCISES.forEach(({ name }, idx) => {
