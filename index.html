@@ -497,6 +497,135 @@
       font-family: 'Cinzel', serif; letter-spacing: 0.15em; text-transform: uppercase;
     }
 
+    /* ── Skill tree ── */
+    .skill-section {
+      background: var(--s2); border: 1px solid var(--sep);
+      padding: 16px; position: relative; overflow: hidden;
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    }
+    /* subtle grid background for the "board" feel */
+    .skill-section::after {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(120,90,40,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(120,90,40,0.07) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+    .skill-section-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 16px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--sep); position: relative; z-index: 1;
+    }
+    .skill-row {
+      display: flex; align-items: flex-start; justify-content: center;
+      gap: 0; position: relative; z-index: 1;
+    }
+    /* horizontal connector between nodes */
+    .skill-h-conn {
+      width: 20px; flex-shrink: 0; margin-top: 28px; /* vertically centre on hex */
+      height: 2px; background: linear-gradient(90deg, var(--sep), var(--sep));
+      position: relative;
+    }
+    .skill-h-conn::before, .skill-h-conn::after {
+      content: ''; position: absolute; top: -2px;
+      width: 5px; height: 5px;
+      background: var(--sep); clip-path: polygon(50% 0%,100% 50%,50% 100%,0% 50%);
+    }
+    .skill-h-conn::before { left: 0; }
+    .skill-h-conn::after  { right: 0; }
+    /* vertical connector between rows */
+    .skill-v-conn {
+      display: flex; justify-content: flex-start;
+      padding-left: calc(50% / 3 + 27px); /* align under first node of a 3-node row */
+      margin: 0; position: relative; z-index: 1;
+    }
+    .skill-v-conn-line {
+      width: 2px; height: 14px; background: var(--sep); position: relative;
+    }
+    /* individual node */
+    .skill-node {
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      cursor: pointer; touch-action: manipulation; position: relative;
+      padding: 6px 4px 4px; min-width: 72px; max-width: 90px; flex: 1;
+      transition: transform 0.12s;
+    }
+    .skill-node:active { transform: scale(0.93); }
+    .skill-hex {
+      width: 58px; height: 58px; flex-shrink: 0;
+      clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; transition: filter 0.2s, box-shadow 0.2s;
+    }
+    /* level-based hex styles */
+    .skill-node.lvl-0 .skill-hex {
+      background: var(--s3); filter: grayscale(1) brightness(0.6); opacity: 0.55;
+    }
+    .skill-node.lvl-1 .skill-hex {
+      background: linear-gradient(135deg,#2A1800,#5A3500);
+      box-shadow: 0 0 8px rgba(139,89,20,0.5);
+    }
+    .skill-node.lvl-2 .skill-hex {
+      background: linear-gradient(135deg,#1E1E1E,#3C3C3C);
+      box-shadow: 0 0 10px rgba(160,160,160,0.45);
+    }
+    .skill-node.lvl-3 .skill-hex {
+      background: linear-gradient(135deg,#3A2400,#7A5010);
+      box-shadow: 0 0 14px rgba(200,155,60,0.6), 0 0 28px rgba(200,155,60,0.2);
+    }
+    .skill-node.lvl-4 .skill-hex {
+      background: linear-gradient(135deg,#5A3800,#C89B3C);
+      box-shadow: 0 0 20px rgba(240,230,211,0.65), 0 0 40px rgba(200,155,60,0.3);
+      animation: skillGlow 2.4s ease-in-out infinite;
+    }
+    .skill-node.lvl-5 .skill-hex {
+      background: linear-gradient(135deg,#052030,#0BC4E3);
+      box-shadow: 0 0 22px rgba(11,196,227,0.75), 0 0 44px rgba(11,196,227,0.3);
+      animation: skillGlow 2s ease-in-out infinite;
+    }
+    @keyframes skillGlow {
+      0%,100% { filter: brightness(1); }
+      50%      { filter: brightness(1.25); }
+    }
+    /* badge (Roman numeral, top-right corner of node) */
+    .skill-badge {
+      position: absolute; top: 2px; right: 2px;
+      font-size: 8px; font-weight: 900; font-family: 'Cinzel', serif;
+      letter-spacing: 0.05em; color: #010A13;
+      background: var(--gold); padding: 1px 5px;
+    }
+    .skill-node.lvl-5 .skill-badge { background: var(--teal); }
+    /* label below hex */
+    .skill-label {
+      font-size: 10px; font-weight: 700; font-family: 'Cinzel', serif;
+      text-align: center; letter-spacing: 0.05em; line-height: 1.3; color: var(--l2);
+    }
+    .skill-node.lvl-0 .skill-label { color: var(--l3); opacity: 0.7; }
+    /* XP progress bar */
+    .skill-xp-wrap {
+      width: 48px; height: 3px; background: rgba(120,90,40,0.3); border-radius: 0;
+    }
+    .skill-xp-fill { height: 100%; transition: width 0.6s ease; }
+    .skill-node.lvl-0 .skill-xp-fill { background: var(--sep); }
+    .skill-node.lvl-1 .skill-xp-fill { background: #8B6914; }
+    .skill-node.lvl-2 .skill-xp-fill { background: #9E9E9E; }
+    .skill-node.lvl-3 .skill-xp-fill { background: var(--gold); }
+    .skill-node.lvl-4 .skill-xp-fill { background: var(--gold-hi); }
+    .skill-node.lvl-5 .skill-xp-fill { background: var(--teal); }
+    /* small "last active / count" text */
+    .skill-meta {
+      font-size: 8px; color: var(--l3); font-family: 'Cinzel', serif;
+      letter-spacing: 0.04em; text-align: center; line-height: 1.3;
+    }
+
+    /* ── Exercise detail modal ── */
+    #exerciseDetailModal {
+      position: fixed; inset: 0; z-index: 810;
+      background: rgba(1,10,19,0.82);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      display: none; align-items: flex-end;
+    }
+    #exerciseDetailModal.open { display: flex; }
+
     /* ── Loading spinner ── */
     .loading-dot {
       display: inline-block; width: 6px; height: 6px;
@@ -662,6 +791,30 @@
       </div>
     </div>
 
+    <!-- ── VISUALIZE VIEW ── -->
+    <div id="viewVisualize" style="display:none;">
+      <header style="padding: calc(var(--topbar-h) + env(safe-area-inset-top) + 20px) 20px 16px;">
+        <div class="lol-title" style="font-size:26px; margin-bottom:3px;">Skill Tree</div>
+        <div class="lol-subtitle">Your Exercise Mastery</div>
+        <div class="lol-divider" style="margin-top:14px;"><span>◆</span></div>
+      </header>
+      <div id="vizContainer" style="padding: 0 20px; display:flex; flex-direction:column; gap:14px;"></div>
+    </div>
+
+    <!-- ── EXERCISE DETAIL MODAL ── -->
+    <div id="exerciseDetailModal" onclick="if(event.target===this)closeExerciseDetail()">
+      <div class="modal-sheet" style="max-height:85vh;">
+        <div class="modal-handle"></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding: 16px 20px 10px;">
+          <div style="font-size:10px;font-weight:700;color:var(--l3);letter-spacing:0.22em;text-transform:uppercase;font-family:'Cinzel',serif;">Exercise Detail</div>
+          <button onclick="closeExerciseDetail()"
+            style="width:28px;height:28px;background:var(--s2);border:1px solid var(--sep);
+                   color:var(--l2);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:serif;">✕</button>
+        </div>
+        <div id="exerciseDetailContent" style="padding: 0 20px 28px; overflow-y:auto;"></div>
+      </div>
+    </div>
+
     <!-- ── BOTTOM NAV ── -->
     <nav id="bottomNav">
       <button class="nav-tab active" id="tab-log" onclick="setView('log')">
@@ -696,6 +849,12 @@
           <path d="M21 21v-2a4 4 0 0 0-3-3.85"/>
         </svg>
         Friends
+      </button>
+      <button class="nav-tab" id="tab-visualize" onclick="setView('visualize')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12,2 15.5,8.5 22,9.5 17,14.5 18,21 12,18 6,21 7,14.5 2,9.5 8.5,8.5"/>
+        </svg>
+        Skills
       </button>
     </nav>
 
@@ -782,6 +941,28 @@
   // Gold palette for user avatars (cycled via username hash)
   const AVATAR_COLORS = ['#C89B3C','#0BC4E3','#00C781','#E84545','#AF52DE','#E67E22','#3498DB','#F39C12'];
 
+  // ── Skill tree ────────────────────────────────────────────────────────────
+  const EXERCISE_CATEGORIES = [
+    {
+      id: 'strength', label: 'Strength', icon: '⚔️', desc: 'Resistance Training',
+      accent: '#C89B3C',
+      exercises: ['Chest Press','Seated Row','Machine Crunch','Leg Press','Dumbbell Work'],
+    },
+    {
+      id: 'cardio', label: 'Cardio', icon: '🔥', desc: 'Endurance & Conditioning',
+      accent: '#E07020',
+      exercises: ['Running','Walking','Boxing','Swimming'],
+    },
+    {
+      id: 'flexibility', label: 'Mind & Body', icon: '✨', desc: 'Flexibility & Recovery',
+      accent: '#AF52DE',
+      exercises: ['Yoga'],
+    },
+  ];
+  // sessions needed to reach each level (index = level)
+  const LEVEL_THRESHOLDS = [0, 1, 3, 6, 11, 21];
+  const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
+
   // ── State ─────────────────────────────────────────────────────────────────
   let currentUser   = null;
   let sessions      = [];      // current user's sessions
@@ -815,6 +996,13 @@
     const pct = ((sliderEl.value - sliderEl.min) / (sliderEl.max - sliderEl.min) * 100).toFixed(1);
     sliderEl.style.setProperty('--pct', pct + '%');
     if (displayId) document.getElementById(displayId).textContent = formatDuration(sliderEl.value);
+  }
+
+  function daysAgo(dateStr) {
+    const days = Math.floor((Date.now() - new Date(dateStr)) / 86400000);
+    if (days === 0) return 'today';
+    if (days === 1) return 'yesterday';
+    return `${days}d ago`;
   }
 
   function usernameColor(name) {
@@ -977,8 +1165,9 @@
       sessions    = all.filter(s => s.username === currentUser)
                        .sort((a, b) => new Date(a.date) - new Date(b.date));
       if (currentView === 'log') { renderHeatmap(); renderExercises(); if (historyOpen) renderHistory(); }
-      if (currentView === 'calendar') renderCalendar();
-      if (currentView === 'friends')  renderFriends();
+      if (currentView === 'calendar')  renderCalendar();
+      if (currentView === 'friends')   renderFriends();
+      if (currentView === 'visualize') renderVisualize();
     });
 
     // Likes — targeted DOM updates, no full re-render
@@ -1013,12 +1202,14 @@
   // ── View routing ──────────────────────────────────────────────────────────
   function setView(v) {
     currentView = v;
-    document.getElementById('viewLog').style.display      = v === 'log'      ? '' : 'none';
-    document.getElementById('viewCalendar').style.display = v === 'calendar' ? '' : 'none';
-    document.getElementById('viewFriends').style.display  = v === 'friends'  ? '' : 'none';
-    ['log','calendar','friends'].forEach(t =>
+    document.getElementById('viewLog').style.display        = v === 'log'       ? '' : 'none';
+    document.getElementById('viewCalendar').style.display   = v === 'calendar'  ? '' : 'none';
+    document.getElementById('viewFriends').style.display    = v === 'friends'   ? '' : 'none';
+    document.getElementById('viewVisualize').style.display  = v === 'visualize' ? '' : 'none';
+    ['log','calendar','friends','visualize'].forEach(t =>
       document.getElementById(`tab-${t}`).classList.toggle('active', v === t));
-    if (v === 'calendar') renderCalendar();
+    if (v === 'calendar')  renderCalendar();
+    if (v === 'visualize') renderVisualize();
     if (v === 'friends') {
       const feed = document.getElementById('friendsFeed');
       feed.innerHTML = `<div style="text-align:center;padding:40px 0;color:var(--l3);font-family:'Cinzel',serif;font-size:12px;letter-spacing:0.12em;">
@@ -1620,6 +1811,199 @@
     if (currentView === 'calendar') renderCalendar();
     if (currentView === 'friends')  renderFriends();
     dbRemove(`sessions/${sessionId}`);
+  }
+
+  // ── Skill tree ────────────────────────────────────────────────────────────
+
+  function getExerciseStats(exerciseName) {
+    const ex = EXERCISES.find(e => e.name === exerciseName);
+    const isDuration = ex?.type === 'duration';
+    const active = sessions.filter(s => {
+      const e = (s.entries || {})[exerciseName];
+      if (!e) return false;
+      return isDuration ? (e.duration > 0) : (e.weight > 0 || e.reps > 0);
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const count = active.length;
+    let level = 0;
+    for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+      if (count >= LEVEL_THRESHOLDS[i]) { level = i; break; }
+    }
+    const curr = LEVEL_THRESHOLDS[level] || 0;
+    const next = LEVEL_THRESHOLDS[level + 1];
+    const xpPct = level >= 5 ? 100 : Math.round((count - curr) / (next - curr) * 100);
+    return { level, count, xpPct, sessions: active, ex, isDuration };
+  }
+
+  function renderSkillNode(name) {
+    const stats = getExerciseStats(name);
+    const ex    = EXERCISES.find(e => e.name === name);
+    const last  = stats.sessions.length ? stats.sessions[stats.sessions.length - 1] : null;
+    const meta  = stats.count > 0 ? `${stats.count}× · ${daysAgo(last.date)}` : 'Not started';
+    const safe  = name.replace(/'/g, "\\'");
+    return `
+      <div class="skill-node lvl-${stats.level}" onclick="openExerciseDetail('${safe}')">
+        <div class="skill-hex">${ex?.emoji || '?'}</div>
+        ${stats.level > 0 ? `<div class="skill-badge">${ROMAN[stats.level]}</div>` : ''}
+        <div class="skill-label">${name}</div>
+        <div class="skill-xp-wrap"><div class="skill-xp-fill" style="width:${stats.xpPct}%"></div></div>
+        <div class="skill-meta">${meta}</div>
+      </div>`;
+  }
+
+  function renderVisualize() {
+    const container = document.getElementById('vizContainer');
+    if (!container) return;
+
+    container.innerHTML = EXERCISE_CATEGORIES.map(cat => {
+      const nodes = cat.exercises;
+      const activeCount = nodes.filter(n => getExerciseStats(n).count > 0).length;
+
+      // Build rows: first 3 in row 1, remaining in row 2 (centered)
+      function buildRow(names) {
+        return `<div class="skill-row">${
+          names.map((n, i) =>
+            renderSkillNode(n) + (i < names.length - 1 ? '<div class="skill-h-conn"></div>' : '')
+          ).join('')
+        }</div>`;
+      }
+
+      let gridHTML;
+      if (nodes.length <= 3) {
+        gridHTML = buildRow(nodes);
+      } else {
+        const row1 = nodes.slice(0, 3);
+        const row2 = nodes.slice(3);
+        // Vertical connector drops from under the first node of row 1
+        gridHTML = buildRow(row1)
+          + `<div class="skill-v-conn"><div class="skill-v-conn-line"></div></div>`
+          + buildRow(row2);
+      }
+
+      return `
+        <div class="skill-section">
+          <div class="skill-section-header">
+            <span style="font-size:20px;">${cat.icon}</span>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:700;font-family:'Cinzel',serif;letter-spacing:0.1em;color:${cat.accent};">${cat.label.toUpperCase()}</div>
+              <div style="font-size:9px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.15em;text-transform:uppercase;">${cat.desc}</div>
+            </div>
+            <div style="font-family:'Cinzel',serif;font-size:10px;color:var(--l3);">
+              <span style="color:${activeCount > 0 ? cat.accent : 'var(--l3)'};">${activeCount}</span>/${nodes.length}
+            </div>
+          </div>
+          ${gridHTML}
+        </div>`;
+    }).join('');
+  }
+
+  function openExerciseDetail(name) {
+    const stats = getExerciseStats(name);
+    const ex    = EXERCISES.find(e => e.name === name);
+    const last  = stats.sessions.length ? stats.sessions[stats.sessions.length - 1] : null;
+
+    // Level accent colour
+    const levelAccent = ['var(--l3)','#8B6914','#9E9E9E','var(--gold)','var(--gold-hi)','var(--teal)'][stats.level];
+
+    // Best value
+    let bestStr = '—';
+    if (stats.count > 0) {
+      if (stats.isDuration) {
+        const maxD = Math.max(...stats.sessions.map(s => (s.entries||{})[name]?.duration || 0));
+        bestStr = formatDuration(maxD);
+      } else {
+        const best = stats.sessions.reduce((a, b) => {
+          const ea = (a.entries||{})[name]; const eb = (b.entries||{})[name];
+          return ((ea?.weight||0)*(ea?.reps||0)) >= ((eb?.weight||0)*(eb?.reps||0)) ? a : b;
+        });
+        const e = (best.entries||{})[name];
+        bestStr = `${e?.weight} lb × ${e?.reps}`;
+      }
+    }
+
+    // Recent sessions (newest first, max 12)
+    const recent = [...stats.sessions].reverse().slice(0, 12);
+    const maxVal = stats.isDuration
+      ? Math.max(1, ...stats.sessions.map(s => (s.entries||{})[name]?.duration || 0))
+      : Math.max(1, ...stats.sessions.map(s => { const e=(s.entries||{})[name]; return (e?.weight||0)*(e?.reps||0); }));
+
+    document.getElementById('exerciseDetailContent').innerHTML = `
+      <!-- header -->
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+        <div style="width:60px;height:60px;flex-shrink:0;
+          clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+          background:${ex?.bg || 'var(--s3)'};
+          display:flex;align-items:center;justify-content:center;font-size:26px;
+          ${stats.level > 0 ? `box-shadow:0 0 18px ${levelAccent}66;` : 'filter:grayscale(1);opacity:0.5;'}
+        ">${ex?.emoji || '?'}</div>
+        <div style="flex:1;">
+          <div style="font-size:18px;font-weight:700;font-family:'Cinzel',serif;letter-spacing:0.06em;color:var(--l2);">${name}</div>
+          <div style="margin-top:5px;display:flex;align-items:center;gap:8px;">
+            ${stats.level > 0
+              ? `<span style="font-size:9px;font-weight:700;font-family:'Cinzel',serif;background:${levelAccent};color:#010A13;padding:2px 7px;letter-spacing:0.08em;">${ROMAN[stats.level]} — LVL ${stats.level}</span>`
+              : `<span style="font-size:9px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.12em;">NOT STARTED</span>`}
+          </div>
+          ${stats.level > 0 && stats.level < 5 ? `
+          <div style="margin-top:7px;">
+            <div style="font-size:8px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.08em;margin-bottom:3px;">
+              ${LEVEL_THRESHOLDS[stats.level+1]-stats.count} sessions to Level ${stats.level+1}
+            </div>
+            <div style="height:4px;background:var(--s3);border:1px solid var(--sep);">
+              <div style="height:100%;width:${stats.xpPct}%;background:${levelAccent};"></div>
+            </div>
+          </div>` : ''}
+        </div>
+      </div>
+
+      <div style="height:1px;background:linear-gradient(90deg,transparent,var(--sep),transparent);margin-bottom:14px;"></div>
+
+      <!-- stats row -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:16px;">
+        ${[
+          ['Sessions', stats.count || '—'],
+          ['Best', bestStr],
+          ['Last', last ? daysAgo(last.date) : '—']
+        ].map(([label, val]) => `
+          <div style="text-align:center;background:var(--s3);padding:10px 4px;">
+            <div style="font-size:${label==='Best'?'12':'18'}px;font-weight:700;font-family:'Cinzel',serif;color:${levelAccent};line-height:1.2;">${val}</div>
+            <div style="font-size:8px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.14em;text-transform:uppercase;margin-top:3px;">${label}</div>
+          </div>`).join('')}
+      </div>
+
+      <!-- session history -->
+      ${recent.length === 0 ? `
+        <div style="text-align:center;padding:20px;color:var(--l3);font-family:'Cinzel',serif;font-size:12px;letter-spacing:0.1em;">
+          Log a session to start tracking
+        </div>` : `
+        <div style="font-size:9px;font-weight:700;color:var(--l3);text-transform:uppercase;letter-spacing:0.18em;font-family:'Cinzel',serif;margin-bottom:10px;">◆ &nbsp;Past Sessions</div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          ${recent.map(s => {
+            const e   = (s.entries||{})[name];
+            const val = stats.isDuration ? (e?.duration||0) : ((e?.weight||0)*(e?.reps||0));
+            const pct = Math.round(val / maxVal * 100);
+            const valStr = stats.isDuration ? formatDuration(e?.duration||0) : `${e?.weight||0} lb × ${e?.reps||0}`;
+            const d   = new Date(s.date);
+            const ds  = d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
+            return `
+              <div style="background:var(--s3);padding:8px 10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                  <span style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;">${ds}</span>
+                  <span style="font-size:12px;font-weight:700;color:var(--teal);font-family:'Cinzel',serif;">${valStr}</span>
+                </div>
+                <div style="height:3px;background:var(--s2);border:1px solid rgba(120,90,40,0.2);">
+                  <div style="height:100%;width:${pct}%;background:${levelAccent};"></div>
+                </div>
+              </div>`;
+          }).join('')}
+        </div>`}`;
+
+    document.getElementById('exerciseDetailModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeExerciseDetail() {
+    document.getElementById('exerciseDetailModal').classList.remove('open');
+    document.body.style.overflow = '';
   }
 
   // ── Workout plans ─────────────────────────────────────────────────────────
