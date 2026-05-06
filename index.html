@@ -883,6 +883,40 @@
       </div>
     </div>
 
+    <!-- ── USER CARD (mini sheet, tapping avatar) ── -->
+    <div id="userCardModal" style="position:fixed;inset:0;z-index:820;background:rgba(1,10,19,0.75);
+         backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+         display:none;align-items:flex-end;"
+         onclick="if(event.target===this)closeUserCard()">
+      <div class="modal-sheet" style="max-height:60vh;">
+        <div class="modal-handle"></div>
+        <div id="userCardContent" style="padding:20px 20px 28px;"></div>
+      </div>
+    </div>
+
+    <!-- ── USER PROFILE (full skill tree) ── -->
+    <div id="userProfileModal" style="position:fixed;inset:0;z-index:830;background:rgba(1,10,19,0.9);
+         backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+         display:none;align-items:flex-end;"
+         onclick="if(event.target===this)closeUserProfile()">
+      <div class="modal-sheet" style="max-height:94vh;display:flex;flex-direction:column;">
+        <div class="modal-handle"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px 10px;flex-shrink:0;">
+          <button onclick="closeUserProfile()"
+            style="display:flex;align-items:center;gap:6px;background:none;border:none;
+                   color:var(--l2);font-family:'Cinzel',serif;font-size:10px;font-weight:700;
+                   letter-spacing:0.15em;cursor:pointer;text-transform:uppercase;">‹ Back</button>
+          <div style="font-size:9px;font-weight:700;color:var(--l3);letter-spacing:0.22em;text-transform:uppercase;font-family:'Cinzel',serif;">Skill Tree</div>
+          <button onclick="closeUserProfile()"
+            style="width:28px;height:28px;background:var(--s2);border:1px solid var(--sep);
+                   color:var(--l2);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+        </div>
+        <div id="userProfileHeader" style="padding:0 20px 16px;flex-shrink:0;"></div>
+        <div style="height:1px;background:linear-gradient(90deg,transparent,var(--sep),transparent);margin:0 20px;flex-shrink:0;"></div>
+        <div id="userProfileTree" style="padding:16px 20px 28px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;"></div>
+      </div>
+    </div>
+
   </div><!-- /mainApp -->
 
   <!-- Firebase SDKs -->
@@ -1418,11 +1452,14 @@
           <button class="btn-del" id="del-${s.id}" onclick="deleteCard(${s.id},this)">Delete</button>
           <button class="btn-edit" onclick="openEdit(${s.id})">Edit</button>
         </div>` : '';
+      const safeUname = (s.username||'unknown').replace(/'/g,"\\'");
       return `
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-          <div class="friend-avatar" style="background:${color};">${initial}</div>
+          <div class="friend-avatar" style="background:${color};cursor:pointer;"
+               onclick="openUserCard('${safeUname}')">${initial}</div>
           <div style="flex:1; min-width:0;">
-            <div style="font-size:13px; font-weight:700; font-family:'Cinzel',serif; color:${isMe?'var(--gold)':'var(--l2)'};">
+            <div style="font-size:13px; font-weight:700; font-family:'Cinzel',serif; color:${isMe?'var(--gold)':'var(--l2)'};"
+                 style="cursor:pointer;" onclick="openUserCard('${safeUname}')">
               ${s.username||'unknown'}${isMe ? '&nbsp;<span style="font-size:9px;color:var(--l3);">(you)</span>' : ''}
             </div>
             <div style="font-size:10px; color:var(--l3); font-family:'Cinzel',serif; letter-spacing:0.06em;">${dateStr} · ${timeStr}</div>
@@ -2003,6 +2040,187 @@
 
   function closeExerciseDetail() {
     document.getElementById('exerciseDetailModal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  // ── User profiles ─────────────────────────────────────────────────────────
+
+  // Like getExerciseStats but scoped to any user's sessions in allSessions
+  function getExerciseStatsForUser(exerciseName, username) {
+    const ex = EXERCISES.find(e => e.name === exerciseName);
+    const isDuration = ex?.type === 'duration';
+    const userSess = allSessions.filter(s => s.username === username);
+    const active = userSess.filter(s => {
+      const e = (s.entries || {})[exerciseName];
+      if (!e) return false;
+      return isDuration ? (e.duration > 0) : (e.weight > 0 || e.reps > 0);
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
+    const count = active.length;
+    let level = 0;
+    for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+      if (count >= LEVEL_THRESHOLDS[i]) { level = i; break; }
+    }
+    const curr = LEVEL_THRESHOLDS[level] || 0;
+    const next = LEVEL_THRESHOLDS[level + 1];
+    const xpPct = level >= 5 ? 100 : Math.round((count - curr) / (next - curr) * 100);
+    return { level, count, xpPct, sessions: active, ex, isDuration };
+  }
+
+  function renderSkillNodeForUser(name, username) {
+    const stats = getExerciseStatsForUser(name, username);
+    const ex    = EXERCISES.find(e => e.name === name);
+    const last  = stats.sessions.length ? stats.sessions[stats.sessions.length - 1] : null;
+    const meta  = stats.count > 0 ? `${stats.count}× · ${daysAgo(last.date)}` : 'Not started';
+    const safe  = name.replace(/'/g, "\\'");
+    return `
+      <div class="skill-node lvl-${stats.level}" style="cursor:default;">
+        <div class="skill-hex">${ex?.emoji || '?'}</div>
+        ${stats.level > 0 ? `<div class="skill-badge">${ROMAN[stats.level]}</div>` : ''}
+        <div class="skill-label">${name}</div>
+        <div class="skill-xp-wrap"><div class="skill-xp-fill" style="width:${stats.xpPct}%"></div></div>
+        <div class="skill-meta">${meta}</div>
+      </div>`;
+  }
+
+  // Build the full skill-tree HTML for any user
+  function renderUserSkillTree(username) {
+    return EXERCISE_CATEGORIES.map(cat => {
+      const nodes = cat.exercises;
+      const activeCount = nodes.filter(n => getExerciseStatsForUser(n, username).count > 0).length;
+
+      function buildRow(names) {
+        return `<div class="skill-row">${
+          names.map((n, i) =>
+            renderSkillNodeForUser(n, username) +
+            (i < names.length - 1 ? '<div class="skill-h-conn"></div>' : '')
+          ).join('')
+        }</div>`;
+      }
+
+      let gridHTML;
+      if (nodes.length <= 3) {
+        gridHTML = buildRow(nodes);
+      } else {
+        gridHTML = buildRow(nodes.slice(0, 3))
+          + `<div class="skill-v-conn"><div class="skill-v-conn-line"></div></div>`
+          + buildRow(nodes.slice(3));
+      }
+
+      return `
+        <div class="skill-section">
+          <div class="skill-section-header">
+            <span style="font-size:20px;">${cat.icon}</span>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:700;font-family:'Cinzel',serif;letter-spacing:0.1em;color:${cat.accent};">${cat.label.toUpperCase()}</div>
+              <div style="font-size:9px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.15em;text-transform:uppercase;">${cat.desc}</div>
+            </div>
+            <div style="font-family:'Cinzel',serif;font-size:10px;color:var(--l3);">
+              <span style="color:${activeCount > 0 ? cat.accent : 'var(--l3)'};">${activeCount}</span>/${nodes.length}
+            </div>
+          </div>
+          ${gridHTML}
+        </div>`;
+    }).join('');
+  }
+
+  // ── Mini user card (tap avatar in friends feed) ───────────────────────────
+  function openUserCard(username) {
+    const color   = usernameColor(username);
+    const initial = username[0].toUpperCase();
+    const isMe    = username === currentUser;
+    const totalSessions = allSessions.filter(s => s.username === username).length;
+    // Highest level across all exercises
+    const maxLevel = Math.max(...EXERCISES.map(ex => getExerciseStatsForUser(ex.name, username).level));
+    const levelAccent = ['var(--l3)','#8B6914','#9E9E9E','var(--gold)','var(--gold-hi)','var(--teal)'][maxLevel] || 'var(--l3)';
+
+    document.getElementById('userCardContent').innerHTML = `
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+        <div style="width:60px;height:60px;flex-shrink:0;
+          clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+          background:${color};display:flex;align-items:center;justify-content:center;
+          font-size:24px;font-weight:900;font-family:'Cinzel',serif;color:#010A13;
+          ${maxLevel > 0 ? `box-shadow:0 0 16px ${levelAccent}66;` : ''}
+        ">${initial}</div>
+        <div>
+          <div style="font-size:20px;font-weight:700;font-family:'Cinzel',serif;letter-spacing:0.06em;color:var(--l2);">
+            ${username}${isMe ? '&nbsp;<span style="font-size:10px;color:var(--l3);">(you)</span>' : ''}
+          </div>
+          <div style="font-size:11px;color:var(--l3);font-family:'Cinzel',serif;margin-top:4px;letter-spacing:0.06em;">
+            ${totalSessions} session${totalSessions !== 1 ? 's' : ''} logged
+            ${maxLevel > 0 ? `&nbsp;·&nbsp;<span style="color:${levelAccent};">Max Lvl ${ROMAN[maxLevel]}</span>` : ''}
+          </div>
+        </div>
+      </div>
+      <button onclick="viewUserProfile('${username.replace(/'/g,"\\'")}'); closeUserCard();"
+        style="width:100%;padding:14px;background:linear-gradient(180deg,#1a3a5c,#0e2440);
+               color:var(--gold-hi);border:1px solid var(--gold);font-family:'Cinzel',serif;
+               font-size:12px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;
+               cursor:pointer;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px));
+               margin-bottom:10px;">View Profile</button>
+      <button onclick="closeUserCard()"
+        style="width:100%;padding:12px;background:transparent;color:var(--l2);
+               border:1px solid var(--sep);font-family:'Cinzel',serif;
+               font-size:11px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;">
+        Close
+      </button>`;
+
+    document.getElementById('userCardModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeUserCard() {
+    document.getElementById('userCardModal').style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  // ── Full user profile (skill tree) ────────────────────────────────────────
+  function viewUserProfile(username) {
+    const color   = usernameColor(username);
+    const initial = username[0].toUpperCase();
+    const isMe    = username === currentUser;
+    const userSessions = allSessions.filter(s => s.username === username);
+    const totalSessions = userSessions.length;
+
+    // Unlock counts per category
+    const categoryStats = EXERCISE_CATEGORIES.map(cat => ({
+      ...cat,
+      unlocked: cat.exercises.filter(n => getExerciseStatsForUser(n, username).count > 0).length,
+    }));
+    const totalUnlocked = categoryStats.reduce((a, c) => a + c.unlocked, 0);
+    const totalExercises = EXERCISES.length;
+    const maxLevel = Math.max(0, ...EXERCISES.map(ex => getExerciseStatsForUser(ex.name, username).level));
+    const levelAccent = ['var(--l3)','#8B6914','#9E9E9E','var(--gold)','var(--gold-hi)','var(--teal)'][maxLevel] || 'var(--l3)';
+
+    // Profile header
+    document.getElementById('userProfileHeader').innerHTML = `
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div style="width:58px;height:58px;flex-shrink:0;
+          clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+          background:${color};display:flex;align-items:center;justify-content:center;
+          font-size:22px;font-weight:900;font-family:'Cinzel',serif;color:#010A13;
+          ${maxLevel > 0 ? `box-shadow:0 0 18px ${levelAccent}77;` : ''}
+        ">${initial}</div>
+        <div style="flex:1;">
+          <div style="font-size:20px;font-weight:700;font-family:'Cinzel',serif;letter-spacing:0.06em;color:var(--l2);">
+            ${username}${isMe ? '&nbsp;<span style="font-size:10px;color:var(--l3);">(you)</span>' : ''}
+          </div>
+          <div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap;">
+            <span style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;">${totalSessions} sessions</span>
+            <span style="font-size:10px;font-family:'Cinzel',serif;color:${levelAccent};">${totalUnlocked}/${totalExercises} exercises</span>
+            ${maxLevel > 0 ? `<span style="font-size:10px;font-family:'Cinzel',serif;color:${levelAccent};">Peak Lvl ${ROMAN[maxLevel]}</span>` : ''}
+          </div>
+        </div>
+      </div>`;
+
+    // Skill tree
+    document.getElementById('userProfileTree').innerHTML = renderUserSkillTree(username);
+
+    document.getElementById('userProfileModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeUserProfile() {
+    document.getElementById('userProfileModal').style.display = 'none';
     document.body.style.overflow = '';
   }
 
