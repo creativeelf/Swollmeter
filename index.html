@@ -722,7 +722,11 @@
   let editId        = null;
   let deletePending = false;
   let historyOpen   = false;
-  let masterRef          = null;   // single listener on db.ref('sessions')
+  let masterRef    = null;   // listener on db.ref('sessions')
+  let likesRef     = null;   // listener on db.ref('likes')
+  let commentsRef  = null;   // listener on db.ref('comments')
+  let likesData    = {};     // { sessionId: { username: true } }
+  let commentsData = {};     // { sessionId: { pushId: { username, text, date } } }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function formatDuration(minutes) {
@@ -850,10 +854,12 @@
   }
 
   function doLogout() {
-    if (masterRef) { masterRef.off(); masterRef = null; }
+    if (masterRef)   { masterRef.off();   masterRef   = null; }
+    if (likesRef)    { likesRef.off();    likesRef    = null; }
+    if (commentsRef) { commentsRef.off(); commentsRef = null; }
     currentUser = null;
-    sessions = [];
-    allSessions = [];
+    sessions = []; allSessions = [];
+    likesData = {}; commentsData = {};
     historyOpen = false;
     localStorage.removeItem(USER_KEY);
     document.getElementById('mainApp').style.display = 'none';
@@ -885,22 +891,41 @@
 
   // ── ONE listener on db.ref('sessions') — no queries, filter client-side ──
   function startMasterListener() {
-    if (masterRef) masterRef.off();
+    if (masterRef)   masterRef.off();
+    if (likesRef)    likesRef.off();
+    if (commentsRef) commentsRef.off();
+
+    // Sessions
     masterRef = db.ref('sessions');
     masterRef.on('value', snap => {
       const all = [];
       snap.forEach(child => { const s = child.val(); if (s) all.push(s); });
-
       allSessions = [...all].sort((a, b) => new Date(b.date) - new Date(a.date));
       sessions    = all.filter(s => s.username === currentUser)
                        .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-      if (currentView === 'log') {
-        renderHeatmap(); renderExercises();
-        if (historyOpen) renderHistory();
-      }
+      if (currentView === 'log') { renderHeatmap(); renderExercises(); if (historyOpen) renderHistory(); }
       if (currentView === 'calendar') renderCalendar();
       if (currentView === 'friends')  renderFriends();
+    });
+
+    // Likes — targeted DOM updates, no full re-render
+    likesRef = db.ref('likes');
+    likesRef.on('value', snap => {
+      likesData = snap.val() || {};
+      if (currentView === 'friends') allSessions.forEach(s => updateLikeButton(s.id));
+    });
+
+    // Comments — update counts + refresh any open comment panels
+    commentsRef = db.ref('comments');
+    commentsRef.on('value', snap => {
+      commentsData = snap.val() || {};
+      if (currentView === 'friends') {
+        allSessions.forEach(s => {
+          updateCommentCount(s.id);
+          const section = document.getElementById(`comments-section-${s.id}`);
+          if (section && section.style.display !== 'none') renderCommentsList(s.id);
+        });
+      }
     });
   }
 
@@ -921,18 +946,24 @@
     ['log','calendar','friends'].forEach(t =>
       document.getElementById(`tab-${t}`).classList.toggle('active', v === t));
     if (v === 'calendar') renderCalendar();
-    if (v === 'friends')  {
-      // Show loading state, then do a fresh read so the feed is never stale
+    if (v === 'friends') {
       const feed = document.getElementById('friendsFeed');
       feed.innerHTML = `<div style="text-align:center;padding:40px 0;color:var(--l3);font-family:'Cinzel',serif;font-size:12px;letter-spacing:0.12em;">
         <span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>
       </div>`;
-      db.ref('sessions').once('value').then(snap => {
+      // Fetch sessions + social data in parallel for a fresh, consistent snapshot
+      Promise.all([
+        db.ref('sessions').once('value'),
+        db.ref('likes').once('value'),
+        db.ref('comments').once('value'),
+      ]).then(([sessSnap, likesSnap, commSnap]) => {
         const all = [];
-        snap.forEach(child => { const s = child.val(); if (s) all.push(s); });
-        allSessions = [...all].sort((a, b) => new Date(b.date) - new Date(a.date));
+        sessSnap.forEach(child => { const s = child.val(); if (s) all.push(s); });
+        allSessions  = [...all].sort((a, b) => new Date(b.date) - new Date(a.date));
+        likesData    = likesSnap.val()  || {};
+        commentsData = commSnap.val()   || {};
         renderFriends();
-      }).catch(() => renderFriends()); // fall back to cached allSessions on error
+      }).catch(() => renderFriends());
     }
   }
 
@@ -1115,10 +1146,9 @@
     }).filter(Boolean).join('');
 
     const headerRow = showUser ? (() => {
-      const color = usernameColor(s.username || '?');
+      const color   = usernameColor(s.username || '?');
       const initial = (s.username||'?')[0].toUpperCase();
       const isAdmin = currentUser === ADMIN_USER;
-      // Admin sees edit/delete on every card; normal users only see them on their own (handled below)
       const adminControls = (isAdmin || isMe) ? `
         <div style="display:flex; gap:6px; flex-shrink:0; margin-left:auto;">
           <button class="btn-del" id="del-${s.id}" onclick="deleteCard(${s.id},this)">Delete</button>
@@ -1147,10 +1177,46 @@
         </div>
       </div>`;
 
+    // Social bar — only shown in friends feed
+    const socialBar = showUser ? `
+      <div style="display:flex; gap:0; margin-top:12px; border-top:1px solid rgba(120,90,40,0.3); padding-top:10px;">
+        <button id="like-btn-${s.id}" onclick="toggleLike(${s.id})"
+          style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;
+                 padding:5px 14px 5px 0;font-family:'Cinzel',serif;font-size:12px;color:var(--l3);
+                 touch-action:manipulation;transition:color 0.12s;">
+          <span id="like-heart-${s.id}" style="font-size:15px;line-height:1;transition:transform 0.15s;">♡</span>
+          <span id="like-count-${s.id}" style="font-size:11px;font-weight:700;letter-spacing:0.08em;min-width:8px;"></span>
+        </button>
+        <button onclick="toggleComments(${s.id})"
+          style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;
+                 padding:5px 14px 5px 4px;font-family:'Cinzel',serif;font-size:12px;color:var(--l3);
+                 touch-action:manipulation;transition:color 0.12s;">
+          <span style="font-size:13px;line-height:1;">💬</span>
+          <span id="comment-count-${s.id}" style="font-size:11px;font-weight:700;letter-spacing:0.06em;">Comment</span>
+        </button>
+      </div>
+      <div id="comments-section-${s.id}" style="display:none; margin-top:10px;">
+        <div id="comments-list-${s.id}" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+        <div style="display:flex;gap:8px;align-items:stretch;">
+          <input id="comment-input-${s.id}"
+            style="flex:1;background:var(--s3);border:1px solid var(--sep);color:var(--label);
+                   font-family:'Cinzel',serif;font-size:12px;padding:9px 12px;outline:none;
+                   letter-spacing:0.04em;"
+            placeholder="Write a comment..."
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();postComment(${s.id});}">
+          <button onclick="postComment(${s.id})"
+            style="background:linear-gradient(180deg,#1a3a5c,#0e2440);color:var(--gold-hi);
+                   border:1px solid var(--gold);font-family:'Cinzel',serif;font-size:9px;font-weight:700;
+                   letter-spacing:0.18em;padding:0 14px;cursor:pointer;touch-action:manipulation;
+                   white-space:nowrap;">Post</button>
+        </div>
+      </div>` : '';
+
     return `
       <div class="history-card ${isMe&&showUser?'mine':''}">
         ${headerRow}
         ${rows ? `<div style="border-top:1px solid rgba(120,90,40,0.4); padding-top:8px;">${rows}</div>` : ''}
+        ${socialBar}
       </div>`;
   }
 
@@ -1176,13 +1242,115 @@
     }
     const cards = [];
     for (const s of allSessions) {
-      try {
-        cards.push(sessionCardHTML(s, true));
-      } catch(err) {
-        console.warn('Skipping malformed session:', s.id, err);
-      }
+      try { cards.push(sessionCardHTML(s, true)); }
+      catch(err) { console.warn('Skipping malformed session:', s.id, err); }
     }
     feed.innerHTML = cards.join('');
+    // Apply live social data now that the DOM is ready
+    allSessions.forEach(s => { updateLikeButton(s.id); updateCommentCount(s.id); });
+  }
+
+  // ── Social: likes ─────────────────────────────────────────────────────────
+  function updateLikeButton(sessionId) {
+    const btn    = document.getElementById(`like-btn-${sessionId}`);
+    const heart  = document.getElementById(`like-heart-${sessionId}`);
+    const countEl = document.getElementById(`like-count-${sessionId}`);
+    if (!btn || !heart || !countEl) return;
+    const likes  = likesData[sessionId] || {};
+    const count  = Object.keys(likes).length;
+    const liked  = !!likes[currentUser];
+    heart.textContent = liked ? '♥' : '♡';
+    heart.style.color = liked ? 'var(--red-light)' : '';
+    heart.style.transform = liked ? 'scale(1.2)' : 'scale(1)';
+    btn.style.color = liked ? 'var(--red-light)' : 'var(--l3)';
+    countEl.textContent = count > 0 ? count : '';
+  }
+
+  function toggleLike(sessionId) {
+    const likes     = likesData[sessionId] || {};
+    const liked     = !!likes[currentUser];
+    // Optimistic update
+    if (!likesData[sessionId]) likesData[sessionId] = {};
+    if (liked) { delete likesData[sessionId][currentUser]; }
+    else       { likesData[sessionId][currentUser] = true; }
+    updateLikeButton(sessionId);
+    // Fire-and-forget to Firebase
+    const path = `likes/${sessionId}/${currentUser}`;
+    if (liked) { db.ref(path).remove().catch(()=>{}); }
+    else       { db.ref(path).set(true).catch(()=>{}); }
+  }
+
+  // ── Social: comments ──────────────────────────────────────────────────────
+  function updateCommentCount(sessionId) {
+    const el = document.getElementById(`comment-count-${sessionId}`);
+    if (!el) return;
+    const count = Object.keys(commentsData[sessionId] || {}).length;
+    el.textContent = count > 0 ? `${count} Comment${count !== 1 ? 's' : ''}` : 'Comment';
+    el.style.color = count > 0 ? 'var(--teal)' : '';
+  }
+
+  function toggleComments(sessionId) {
+    const section = document.getElementById(`comments-section-${sessionId}`);
+    if (!section) return;
+    const opening = section.style.display === 'none';
+    section.style.display = opening ? '' : 'none';
+    if (opening) {
+      renderCommentsList(sessionId);
+      setTimeout(() => {
+        const inp = document.getElementById(`comment-input-${sessionId}`);
+        if (inp) inp.focus();
+      }, 80);
+    }
+  }
+
+  function renderCommentsList(sessionId) {
+    const list = document.getElementById(`comments-list-${sessionId}`);
+    if (!list) return;
+    const raw     = commentsData[sessionId] || {};
+    const sorted  = Object.values(raw).sort((a,b) => new Date(a.date) - new Date(b.date));
+    if (sorted.length === 0) {
+      list.innerHTML = `<div style="font-size:11px;color:var(--l3);font-family:'Cinzel',serif;text-align:center;padding:6px 0;letter-spacing:0.1em;">No comments yet — be first!</div>`;
+      return;
+    }
+    list.innerHTML = sorted.map(c => {
+      const color   = usernameColor(c.username || '?');
+      const initial = (c.username||'?')[0].toUpperCase();
+      const isMe    = c.username === currentUser;
+      const when    = new Date(c.date);
+      const timeStr = when.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+      const dateStr = when.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+      return `
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <div style="width:26px;height:26px;flex-shrink:0;
+            clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+            background:${color};display:flex;align-items:center;justify-content:center;
+            font-size:10px;font-weight:900;font-family:'Cinzel',serif;color:#010A13;">${initial}</div>
+          <div style="flex:1;background:var(--s3);padding:8px 10px;border-left:2px solid ${color};">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+              <span style="font-size:11px;font-weight:700;font-family:'Cinzel',serif;color:${isMe?'var(--gold)':'var(--l2)'};">${c.username||'unknown'}</span>
+              <span style="font-size:9px;color:var(--l3);font-family:'Cinzel',serif;">${dateStr} · ${timeStr}</span>
+            </div>
+            <div style="font-size:12px;color:var(--label);font-family:'Cinzel',serif;line-height:1.6;word-break:break-word;">${c.text}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function postComment(sessionId) {
+    const inp = document.getElementById(`comment-input-${sessionId}`);
+    if (!inp) return;
+    const text = inp.value.trim();
+    if (!text) return;
+    inp.value = '';
+    const comment = { username: currentUser, text, date: new Date().toISOString() };
+    // Optimistic update
+    const tempId = 'tmp_' + Date.now();
+    if (!commentsData[sessionId]) commentsData[sessionId] = {};
+    commentsData[sessionId][tempId] = comment;
+    renderCommentsList(sessionId);
+    updateCommentCount(sessionId);
+    // Fire-and-forget
+    db.ref(`comments/${sessionId}`).push(comment).catch(e => console.error('Comment error:', e));
   }
 
   // ── Calendar ──────────────────────────────────────────────────────────────
