@@ -213,6 +213,47 @@
     }
     input[type="number"]::placeholder { color: var(--l3); }
 
+    /* ── Plan controls ── */
+    .plan-select-wrap { position: relative; flex: 1; }
+    .plan-select-wrap::after {
+      content: '◆';
+      position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
+      font-size: 8px; color: var(--gold); pointer-events: none;
+    }
+    .plan-select {
+      width: 100%; appearance: none; -webkit-appearance: none;
+      background: var(--s3); color: var(--label);
+      border: 1px solid var(--sep);
+      font-family: 'Cinzel', serif; font-size: 12px; font-weight: 600;
+      padding: 11px 30px 11px 12px; outline: none; cursor: pointer;
+      letter-spacing: 0.04em;
+    }
+    .plan-select:focus { border-color: var(--gold); }
+    .plan-select option { background: var(--s2); }
+    .plan-action-btn {
+      background: var(--s2); color: var(--l2);
+      border: 1px solid var(--sep);
+      font-family: 'Cinzel', serif; font-size: 10px; font-weight: 700;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      padding: 11px 14px; cursor: pointer; white-space: nowrap;
+      touch-action: manipulation; transition: all 0.12s; flex-shrink: 0;
+    }
+    .plan-action-btn:active { background: rgba(200,155,60,0.1); border-color: var(--gold); color: var(--gold); }
+    .plan-action-btn.primary {
+      background: linear-gradient(180deg,#1a3a5c,#0e2440);
+      color: var(--gold-hi); border-color: var(--gold);
+    }
+    .plan-action-btn.primary:active { box-shadow: 0 0 12px rgba(200,155,60,0.25); }
+    .plan-action-btn.danger { color: var(--red-light); border-color: rgba(200,41,28,0.4); }
+    .plan-action-btn.danger:active { background: rgba(200,41,28,0.12); }
+    .plan-name-input {
+      flex: 1; background: var(--s3); color: var(--label);
+      border: 1px solid var(--gold); font-family: 'Cinzel', serif;
+      font-size: 12px; font-weight: 600; padding: 11px 12px; outline: none;
+      letter-spacing: 0.04em;
+    }
+    .plan-name-input::placeholder { color: var(--l3); font-weight: 400; }
+
     /* ── Duration slider ── */
     .dur-slider {
       -webkit-appearance: none; appearance: none;
@@ -540,7 +581,37 @@
         <div id="heatmap" style="display:flex; gap:4px;"></div>
       </header>
 
-      <div style="padding: 8px 20px 0;">
+      <!-- ── Plan controls ── -->
+      <div style="padding: 4px 20px 16px;">
+        <div class="lol-divider" style="margin-bottom:14px;"><span>◆</span></div>
+        <div class="section-label" style="margin-bottom:10px;">◆ &nbsp;Workout Plan</div>
+
+        <!-- Load row -->
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <div class="plan-select-wrap">
+            <select id="planSelect" class="plan-select">
+              <option value="">— No saved plans —</option>
+            </select>
+          </div>
+          <button class="plan-action-btn primary" onclick="loadPlan()">Load</button>
+        </div>
+
+        <!-- Save / Clear row (toggles to name-input row) -->
+        <div id="planSaveRow" style="display:flex; gap:8px;">
+          <button class="plan-action-btn primary" style="flex:1;" onclick="startSavePlan()">Save as Plan</button>
+          <button class="plan-action-btn danger" onclick="clearAll()">Clear All</button>
+        </div>
+        <div id="planNameRow" style="display:none; gap:8px;">
+          <input id="planNameInput" class="plan-name-input"
+            placeholder="Name this plan..."
+            maxlength="30" autocomplete="off"
+            onkeydown="if(event.key==='Enter')confirmSavePlan();if(event.key==='Escape')cancelSavePlan();">
+          <button class="plan-action-btn primary" onclick="confirmSavePlan()">✓</button>
+          <button class="plan-action-btn" onclick="cancelSavePlan()">✕</button>
+        </div>
+      </div>
+
+      <div style="padding: 0 20px 0;">
         <div class="section-label">◆ &nbsp;Exercises</div>
         <div id="exerciseList" style="display:flex; flex-direction:column; gap:10px;"></div>
       </div>
@@ -722,6 +793,7 @@
   let editId        = null;
   let deletePending = false;
   let historyOpen   = false;
+  let userPlans    = {};     // { planId: { id, name, entries } }
   let masterRef    = null;   // listener on db.ref('sessions')
   let likesRef     = null;   // listener on db.ref('likes')
   let commentsRef  = null;   // listener on db.ref('comments')
@@ -859,7 +931,7 @@
     if (commentsRef) { commentsRef.off(); commentsRef = null; }
     currentUser = null;
     sessions = []; allSessions = [];
-    likesData = {}; commentsData = {};
+    likesData = {}; commentsData = {}; userPlans = {};
     historyOpen = false;
     localStorage.removeItem(USER_KEY);
     document.getElementById('mainApp').style.display = 'none';
@@ -882,8 +954,9 @@
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = '';
 
-    sessions = []; allSessions = [];
+    sessions = []; allSessions = []; userPlans = {};
     renderHeatmap(); renderExercises();
+    loadUserPlans();
 
     startMasterListener();
     setView('log');
@@ -1547,6 +1620,122 @@
     if (currentView === 'calendar') renderCalendar();
     if (currentView === 'friends')  renderFriends();
     dbRemove(`sessions/${sessionId}`);
+  }
+
+  // ── Workout plans ─────────────────────────────────────────────────────────
+
+  // Fetch all plans for this user from Firebase and populate the dropdown
+  function loadUserPlans() {
+    db.ref(`plans/${currentUser}`).once('value').then(snap => {
+      userPlans = snap.val() || {};
+      renderPlanDropdown();
+    }).catch(() => {});
+  }
+
+  function renderPlanDropdown() {
+    const sel = document.getElementById('planSelect');
+    if (!sel) return;
+    const plans = Object.values(userPlans).sort((a, b) => (a.createdAt||0) - (b.createdAt||0));
+    if (plans.length === 0) {
+      sel.innerHTML = '<option value="">— No saved plans —</option>';
+    } else {
+      sel.innerHTML = '<option value="">Select a plan...</option>'
+        + plans.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    }
+  }
+
+  // Read current exercise inputs and return an entries map
+  function readCurrentEntries() {
+    const entries = {};
+    EXERCISES.forEach(({ name, type }, idx) => {
+      if (type === 'duration') {
+        entries[name] = { duration: parseInt(document.getElementById(`d${idx}`)?.value)||0 };
+      } else {
+        entries[name] = {
+          weight: parseFloat(document.getElementById(`w${idx}`)?.value)||0,
+          reps:   parseInt(document.getElementById(`r${idx}`)?.value)||0,
+        };
+      }
+    });
+    return entries;
+  }
+
+  // Apply an entries map to the live exercise inputs
+  function applyEntriesToInputs(entries) {
+    EXERCISES.forEach(({ name, type, maxMin }, idx) => {
+      const e = (entries || {})[name];
+      if (type === 'duration') {
+        const slider = document.getElementById(`d${idx}`);
+        if (!slider) return;
+        const val = Math.min((e && e.duration) || 0, maxMin || 180);
+        slider.value = val;
+        syncSlider(slider, `dur-disp-${idx}`);
+      } else {
+        const wEl = document.getElementById(`w${idx}`);
+        const rEl = document.getElementById(`r${idx}`);
+        if (wEl) wEl.value = (e && e.weight) || '';
+        if (rEl) rEl.value = (e && e.reps)   || '';
+      }
+    });
+  }
+
+  // ── Save flow ──
+  function startSavePlan() {
+    document.getElementById('planSaveRow').style.display = 'none';
+    const nameRow = document.getElementById('planNameRow');
+    nameRow.style.display = 'flex';
+    const inp = document.getElementById('planNameInput');
+    inp.value = '';
+    setTimeout(() => inp.focus(), 60);
+  }
+
+  function cancelSavePlan() {
+    document.getElementById('planNameRow').style.display = 'none';
+    document.getElementById('planSaveRow').style.display = 'flex';
+  }
+
+  function confirmSavePlan() {
+    const name = document.getElementById('planNameInput').value.trim();
+    if (!name) { document.getElementById('planNameInput').focus(); return; }
+    cancelSavePlan();
+
+    const id      = Date.now();
+    const entries = readCurrentEntries();
+    const plan    = { id, name, entries, createdAt: id };
+
+    // Optimistic local update
+    userPlans[id] = plan;
+    renderPlanDropdown();
+    // Select the new plan in the dropdown
+    const sel = document.getElementById('planSelect');
+    if (sel) sel.value = id;
+
+    // Persist to Firebase
+    db.ref(`plans/${currentUser}/${id}`).set(plan).catch(e => console.error('Plan save error:', e));
+
+    // Brief success flash on the button
+    const btn = document.querySelector('#planSaveRow .plan-action-btn.primary');
+    if (btn) {
+      btn.textContent = '✓ Saved!';
+      setTimeout(() => { btn.textContent = 'Save as Plan'; }, 1600);
+    }
+  }
+
+  // ── Load flow ──
+  function loadPlan() {
+    const sel = document.getElementById('planSelect');
+    const id  = sel && sel.value;
+    if (!id) return;
+    const plan = userPlans[id];
+    if (!plan) return;
+    applyEntriesToInputs(plan.entries);
+    flash('rgba(200,155,60,0.07)');
+  }
+
+  // ── Clear all inputs ──
+  function clearAll() {
+    applyEntriesToInputs({});   // pass empty map → every exercise gets zero/empty
+    flash('rgba(11,196,227,0.05)');
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────
