@@ -1218,8 +1218,7 @@
       if (currentView === 'friends') {
         allSessions.forEach(s => {
           updateCommentCount(s.id);
-          const section = document.getElementById(`comments-section-${s.id}`);
-          if (section && section.style.display !== 'none') renderCommentsList(s.id);
+          renderCommentsList(s.id);
         });
       }
     });
@@ -1496,7 +1495,7 @@
           <span id="comment-count-${s.id}" style="font-size:11px;font-weight:700;letter-spacing:0.06em;">Comment</span>
         </button>
       </div>
-      <div id="comments-section-${s.id}" style="display:none; margin-top:10px;">
+      <div id="comments-section-${s.id}" style="margin-top:10px;">
         <div id="comments-list-${s.id}" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
         <div style="display:flex;gap:8px;align-items:stretch;">
           <input id="comment-input-${s.id}"
@@ -1548,7 +1547,11 @@
     }
     feed.innerHTML = cards.join('');
     // Apply live social data now that the DOM is ready
-    allSessions.forEach(s => { updateLikeButton(s.id); updateCommentCount(s.id); });
+    allSessions.forEach(s => {
+      updateLikeButton(s.id);
+      updateCommentCount(s.id);
+      renderCommentsList(s.id);   // comments visible by default
+    });
   }
 
   // ── Social: likes ─────────────────────────────────────────────────────────
@@ -1593,9 +1596,9 @@
   function toggleComments(sessionId) {
     const section = document.getElementById(`comments-section-${sessionId}`);
     if (!section) return;
-    const opening = section.style.display === 'none';
-    section.style.display = opening ? '' : 'none';
-    if (opening) {
+    const isOpen = section.style.display !== 'none';
+    section.style.display = isOpen ? 'none' : '';
+    if (!isOpen) {
       renderCommentsList(sessionId);
       setTimeout(() => {
         const inp = document.getElementById(`comment-input-${sessionId}`);
