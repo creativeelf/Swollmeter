@@ -213,6 +213,29 @@
     }
     input[type="number"]::placeholder { color: var(--l3); }
 
+    /* ── Duration slider ── */
+    .dur-slider {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 6px;
+      background: linear-gradient(90deg, var(--gold) var(--pct, 0%), var(--s3) var(--pct, 0%));
+      border-radius: 0; outline: none; cursor: pointer;
+      border: 1px solid var(--sep);
+    }
+    .dur-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 22px; height: 22px;
+      background: var(--gold);
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      cursor: pointer; transition: background 0.12s;
+    }
+    .dur-slider::-webkit-slider-thumb:active { background: var(--gold-hi); }
+    .dur-slider::-moz-range-thumb {
+      width: 22px; height: 22px;
+      background: var(--gold);
+      border: none; border-radius: 0; cursor: pointer;
+    }
+    .dur-slider:focus { box-shadow: 0 0 0 1px var(--gold); }
+
     /* ── Stepper buttons ── */
     .step-btn {
       background: var(--s3); color: var(--gold);
@@ -668,11 +691,18 @@
 
   // ── Constants ─────────────────────────────────────────────────────────────
   const EXERCISES = [
-    { name:'Chest Press',    emoji:'🏋️', bg:'linear-gradient(135deg,#8B2500,#C84B00)', weightStep:5,  repsStep:1 },
-    { name:'Seated Row',     emoji:'🚣', bg:'linear-gradient(135deg,#0A3A5C,#0BC4E3)', weightStep:5,  repsStep:1 },
-    { name:'Machine Crunch', emoji:'🤸', bg:'linear-gradient(135deg,#4A0E6B,#C89B3C)', weightStep:5,  repsStep:1 },
-    { name:'Leg Press',      emoji:'🦵', bg:'linear-gradient(135deg,#0A3B1F,#00C781)', weightStep:10, repsStep:1 },
-    { name:'Dumbbell Work',  emoji:'💪', bg:'linear-gradient(135deg,#7A1A00,#C89B3C)', weightStep:5,  repsStep:1 },
+    // ── Strength (weight + reps) ──────────────────────────────────────────────
+    { name:'Chest Press',    emoji:'🏋️', bg:'linear-gradient(135deg,#8B2500,#C84B00)', weightStep:5,  repsStep:1,  type:'strength' },
+    { name:'Seated Row',     emoji:'🚣', bg:'linear-gradient(135deg,#0A3A5C,#0BC4E3)', weightStep:5,  repsStep:1,  type:'strength' },
+    { name:'Machine Crunch', emoji:'🤸', bg:'linear-gradient(135deg,#4A0E6B,#C89B3C)', weightStep:5,  repsStep:1,  type:'strength' },
+    { name:'Leg Press',      emoji:'🦵', bg:'linear-gradient(135deg,#0A3B1F,#00C781)', weightStep:10, repsStep:1,  type:'strength' },
+    { name:'Dumbbell Work',  emoji:'💪', bg:'linear-gradient(135deg,#7A1A00,#C89B3C)', weightStep:5,  repsStep:1,  type:'strength' },
+    // ── Duration (slider, 15-min steps, max 3 hr) ─────────────────────────────
+    { name:'Running',   emoji:'🏃', bg:'linear-gradient(135deg,#7A2800,#E07020)', type:'duration', maxMin:180 },
+    { name:'Walking',   emoji:'🚶', bg:'linear-gradient(135deg,#0A3B1F,#2E9E60)', type:'duration', maxMin:180 },
+    { name:'Yoga',      emoji:'🧘', bg:'linear-gradient(135deg,#3D0A6B,#AF52DE)', type:'duration', maxMin:120 },
+    { name:'Boxing',    emoji:'🥊', bg:'linear-gradient(135deg,#6B0A0A,#C8291C)', type:'duration', maxMin:120 },
+    { name:'Swimming',  emoji:'🏊', bg:'linear-gradient(135deg,#0A2A5C,#0BC4E3)', type:'duration', maxMin:180 },
   ];
   const MONTH_NAMES = ['January','February','March','April','May','June',
                        'July','August','September','October','November','December'];
@@ -695,6 +725,22 @@
   let masterRef          = null;   // single listener on db.ref('sessions')
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+  function formatDuration(minutes) {
+    minutes = parseInt(minutes) || 0;
+    if (minutes === 0) return '0 min';
+    if (minutes < 60)  return `${minutes} min`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m > 0 ? `${h} hr ${m} min` : `${h} hr`;
+  }
+
+  // Update slider gradient fill and display label in sync
+  function syncSlider(sliderEl, displayId) {
+    const pct = ((sliderEl.value - sliderEl.min) / (sliderEl.max - sliderEl.min) * 100).toFixed(1);
+    sliderEl.style.setProperty('--pct', pct + '%');
+    if (displayId) document.getElementById(displayId).textContent = formatDuration(sliderEl.value);
+  }
+
   function usernameColor(name) {
     let h = 0;
     for (let c of name) h = (h * 31 + c.charCodeAt(0)) % AVATAR_COLORS.length;
@@ -881,8 +927,8 @@
   // ── Exercise cards ────────────────────────────────────────────────────────
   function getLastEntry(name) {
     for (let i = sessions.length - 1; i >= 0; i--) {
-      const e = sessions[i].entries[name];
-      if (e && (e.weight > 0 || e.reps > 0)) return e;
+      const e = (sessions[i].entries || {})[name];
+      if (e && (e.weight > 0 || e.reps > 0 || e.duration > 0)) return e;
     }
     return null;
   }
@@ -890,22 +936,39 @@
   function renderExercises() {
     const list = document.getElementById('exerciseList');
     list.innerHTML = '';
-    EXERCISES.forEach(({ name, emoji, bg, weightStep, repsStep }, idx) => {
+    EXERCISES.forEach(({ name, emoji, bg, weightStep, repsStep, type, maxMin }, idx) => {
       const last    = getLastEntry(name);
       const hasLast = last !== null;
       const card    = document.createElement('div');
       card.className = 'card'; card.id = `card-${idx}`; card.style.padding = '14px';
-      card.innerHTML = `
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
-          <div class="ex-icon" style="background:${bg};">${emoji}</div>
-          <div style="flex:1; min-width:0;">
-            <div style="font-size:14px; font-weight:700; letter-spacing:0.08em; font-family:'Cinzel',serif;">${name}</div>
-            <div style="font-size:11px; color:${hasLast?'var(--teal)':'var(--l3)'}; margin-top:3px; letter-spacing:0.05em; font-family:'Cinzel',serif;">
-              ${hasLast ? `Last: ${last.weight} lb &times; ${last.reps} reps` : 'No data yet'}
+
+      const lastLabel = hasLast
+        ? (type === 'duration'
+            ? `Last: ${formatDuration(last.duration)}`
+            : `Last: ${last.weight} lb &times; ${last.reps} reps`)
+        : 'No data yet';
+
+      const inputsHTML = type === 'duration' ? (() => {
+        const initVal = hasLast ? last.duration : 0;
+        const max     = maxMin || 180;
+        const pct     = (initVal / max * 100).toFixed(1);
+        return `
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;">
+              <div style="font-size:9px; font-weight:700; color:var(--l3); text-transform:uppercase; letter-spacing:0.15em; font-family:'Cinzel',serif;">Duration</div>
+              <div id="dur-disp-${idx}" style="font-size:16px; font-weight:700; color:var(--teal); font-family:'Cinzel',serif; letter-spacing:0.05em;">${formatDuration(initVal)}</div>
             </div>
-          </div>
-        </div>
-        <div style="height:1px; background:linear-gradient(90deg,var(--sep),transparent); margin-bottom:12px;"></div>
+            <input type="range" class="dur-slider" id="d${idx}"
+              min="0" max="${max}" step="15" value="${initVal}"
+              style="--pct:${pct}%"
+              oninput="syncSlider(this,'dur-disp-${idx}')">
+            <div style="display:flex; justify-content:space-between; margin-top:5px;">
+              <span style="font-size:9px; color:var(--l3); font-family:'Cinzel',serif;">0</span>
+              <span style="font-size:9px; color:var(--l3); font-family:'Cinzel',serif;">${max >= 120 ? '1 hr' : '30 min'}</span>
+              <span style="font-size:9px; color:var(--l3); font-family:'Cinzel',serif;">${formatDuration(max)}</span>
+            </div>
+          </div>`;
+      })() : `
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div>
             <div style="font-size:9px; font-weight:700; color:var(--l3); text-transform:uppercase; letter-spacing:0.15em; margin-bottom:6px; font-family:'Cinzel',serif;">Weight (lb)</div>
@@ -924,6 +987,19 @@
             </div>
           </div>
         </div>`;
+
+      card.innerHTML = `
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+          <div class="ex-icon" style="background:${bg};">${emoji}</div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-size:14px; font-weight:700; letter-spacing:0.08em; font-family:'Cinzel',serif;">${name}</div>
+            <div style="font-size:11px; color:${hasLast?'var(--teal)':'var(--l3)'}; margin-top:3px; letter-spacing:0.05em; font-family:'Cinzel',serif;">
+              ${lastLabel}
+            </div>
+          </div>
+        </div>
+        <div style="height:1px; background:linear-gradient(90deg,var(--sep),transparent); margin-bottom:12px;"></div>
+        ${inputsHTML}`;
       list.appendChild(card);
     });
   }
@@ -936,11 +1012,17 @@
   // ── Log session ───────────────────────────────────────────────────────────
   function logSession() {
     const entries = {}; let hasData = false;
-    EXERCISES.forEach(({ name }, idx) => {
-      const w = parseFloat(document.getElementById(`w${idx}`).value)||0;
-      const r = parseInt(document.getElementById(`r${idx}`).value)||0;
-      entries[name] = { weight:w, reps:r };
-      if (w > 0 || r > 0) hasData = true;
+    EXERCISES.forEach(({ name, type }, idx) => {
+      if (type === 'duration') {
+        const d = parseInt(document.getElementById(`d${idx}`).value)||0;
+        entries[name] = { duration: d };
+        if (d > 0) hasData = true;
+      } else {
+        const w = parseFloat(document.getElementById(`w${idx}`).value)||0;
+        const r = parseInt(document.getElementById(`r${idx}`).value)||0;
+        entries[name] = { weight:w, reps:r };
+        if (w > 0 || r > 0) hasData = true;
+      }
     });
     if (!hasData) { flash('rgba(200,41,28,0.1)'); return; }
 
@@ -981,13 +1063,22 @@
     const timeStr = d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
     const isMe    = s.username === currentUser;
 
-    const rows = EXERCISES.map(({ name, emoji }) => {
+    const rows = EXERCISES.map(({ name, emoji, type }) => {
       const e = (s.entries || {})[name];
-      if (!e || (e.weight===0 && e.reps===0)) return '';
-      return `<div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0;">
-        <span style="font-size:12px; color:var(--l2); font-family:'Cinzel',serif;">${emoji}&nbsp;${name}</span>
-        <span style="font-size:12px; font-weight:600; color:var(--teal); font-family:'Cinzel',serif;">${e.weight} lb &times; ${e.reps}</span>
-      </div>`;
+      if (!e) return '';
+      if (type === 'duration') {
+        if (!e.duration) return '';
+        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0;">
+          <span style="font-size:12px; color:var(--l2); font-family:'Cinzel',serif;">${emoji}&nbsp;${name}</span>
+          <span style="font-size:12px; font-weight:600; color:var(--teal); font-family:'Cinzel',serif;">${formatDuration(e.duration)}</span>
+        </div>`;
+      } else {
+        if (e.weight===0 && e.reps===0) return '';
+        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:3px 0;">
+          <span style="font-size:12px; color:var(--l2); font-family:'Cinzel',serif;">${emoji}&nbsp;${name}</span>
+          <span style="font-size:12px; font-weight:600; color:var(--teal); font-family:'Cinzel',serif;">${e.weight} lb &times; ${e.reps}</span>
+        </div>`;
+      }
     }).filter(Boolean).join('');
 
     const headerRow = showUser ? (() => {
@@ -1134,34 +1225,59 @@
       d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' }) +
       ' · ' + d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
 
-    document.getElementById('editExercises').innerHTML = EXERCISES.map(({ name, emoji, bg, weightStep, repsStep }, idx) => {
-      const e = (session.entries || {})[name] || { weight:0, reps:0 };
+    document.getElementById('editExercises').innerHTML = EXERCISES.map(({ name, emoji, bg, weightStep, repsStep, type, maxMin }, idx) => {
+      const e = (session.entries || {})[name] || {};
+      const sep = idx < EXERCISES.length-1
+        ? '<div style="height:1px;background:linear-gradient(90deg,transparent,var(--sep),transparent);margin-top:4px;"></div>' : '';
+
+      const inputsHTML = type === 'duration' ? (() => {
+        const initVal = e.duration || 0;
+        const max     = maxMin || 180;
+        const pct     = (initVal / max * 100).toFixed(1);
+        return `
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+              <div style="font-size:9px;font-weight:700;color:var(--l3);text-transform:uppercase;letter-spacing:0.15em;font-family:'Cinzel',serif;">Duration</div>
+              <div id="edit-dur-disp-${idx}" style="font-size:16px;font-weight:700;color:var(--teal);font-family:'Cinzel',serif;">${formatDuration(initVal)}</div>
+            </div>
+            <input type="range" class="dur-slider" id="ed${idx}"
+              min="0" max="${max}" step="15" value="${initVal}"
+              style="--pct:${pct}%"
+              oninput="syncSlider(this,'edit-dur-disp-${idx}')">
+            <div style="display:flex;justify-content:space-between;margin-top:5px;">
+              <span style="font-size:9px;color:var(--l3);font-family:'Cinzel',serif;">0</span>
+              <span style="font-size:9px;color:var(--l3);font-family:'Cinzel',serif;">${max >= 120 ? '1 hr' : '30 min'}</span>
+              <span style="font-size:9px;color:var(--l3);font-family:'Cinzel',serif;">${formatDuration(max)}</span>
+            </div>
+          </div>`;
+      })() : `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <div style="font-size:9px;font-weight:700;color:var(--l3);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:6px;font-family:'Cinzel',serif;">Weight (lb)</div>
+            <div style="display:flex;border:1px solid var(--sep);overflow:hidden;">
+              <button class="step-btn" onclick="step('ew${idx}',-${weightStep})">−</button>
+              <input type="number" id="ew${idx}" min="0" step="${weightStep}" value="${e.weight||''}" placeholder="0">
+              <button class="step-btn" onclick="step('ew${idx}',${weightStep})">+</button>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:9px;font-weight:700;color:var(--l3);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:6px;font-family:'Cinzel',serif;">Reps</div>
+            <div style="display:flex;border:1px solid var(--sep);overflow:hidden;">
+              <button class="step-btn" onclick="step('er${idx}',-${repsStep})">−</button>
+              <input type="number" id="er${idx}" min="0" step="${repsStep}" value="${e.reps||''}" placeholder="0">
+              <button class="step-btn" onclick="step('er${idx}',${repsStep})">+</button>
+            </div>
+          </div>
+        </div>`;
+
       return `
         <div>
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
             <div class="ex-icon" style="background:${bg};width:32px;height:32px;font-size:16px;">${emoji}</div>
             <span style="font-size:13px;font-weight:700;font-family:'Cinzel',serif;letter-spacing:0.08em;color:var(--l2);">${name}</span>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div>
-              <div style="font-size:9px;font-weight:700;color:var(--l3);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:6px;font-family:'Cinzel',serif;">Weight (lb)</div>
-              <div style="display:flex;border:1px solid var(--sep);overflow:hidden;">
-                <button class="step-btn" onclick="step('ew${idx}',-${weightStep})">−</button>
-                <input type="number" id="ew${idx}" min="0" step="${weightStep}" value="${e.weight||''}" placeholder="0">
-                <button class="step-btn" onclick="step('ew${idx}',${weightStep})">+</button>
-              </div>
-            </div>
-            <div>
-              <div style="font-size:9px;font-weight:700;color:var(--l3);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:6px;font-family:'Cinzel',serif;">Reps</div>
-              <div style="display:flex;border:1px solid var(--sep);overflow:hidden;">
-                <button class="step-btn" onclick="step('er${idx}',-${repsStep})">−</button>
-                <input type="number" id="er${idx}" min="0" step="${repsStep}" value="${e.reps||''}" placeholder="0">
-                <button class="step-btn" onclick="step('er${idx}',${repsStep})">+</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        ${idx < EXERCISES.length-1 ? '<div style="height:1px;background:linear-gradient(90deg,transparent,var(--sep),transparent);margin-top:4px;"></div>' : ''}`;
+          ${inputsHTML}
+        </div>${sep}`;
     }).join('');
 
     const delBtn = document.getElementById('deleteBtn');
@@ -1182,11 +1298,15 @@
     const session = pool.find(s => s.id === editId);
     if (!session) return;
     const entries = {};
-    EXERCISES.forEach(({ name }, idx) => {
-      entries[name] = {
-        weight: parseFloat(document.getElementById(`ew${idx}`).value)||0,
-        reps:   parseInt(document.getElementById(`er${idx}`).value)||0,
-      };
+    EXERCISES.forEach(({ name, type }, idx) => {
+      if (type === 'duration') {
+        entries[name] = { duration: parseInt(document.getElementById(`ed${idx}`).value)||0 };
+      } else {
+        entries[name] = {
+          weight: parseFloat(document.getElementById(`ew${idx}`).value)||0,
+          reps:   parseInt(document.getElementById(`er${idx}`).value)||0,
+        };
+      }
     });
     session.entries = entries;
     closeEdit();
