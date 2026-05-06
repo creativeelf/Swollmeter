@@ -765,39 +765,68 @@
 
   // ── Auth ──────────────────────────────────────────────────────────────────
 
-  // Firebase can hang forever instead of rejecting when rules block a read.
-  // Wrap every Firebase call with a 8-second timeout so the button never
-  // stays stuck loading indefinitely.
-  function fbOnce(ref) {
+  // Firebase can hang forever (never rejects) when rules block a read.
+  // We race against a timeout so the button never stays frozen.
+  // timeoutMs of 15 s covers Firebase cold-start on slow connections.
+  function fbOnce(ref, timeoutMs = 15000) {
     return Promise.race([
       ref.once('value'),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Firebase timeout — check database rules')), 8000)
+        setTimeout(() => reject(new Error('timeout')), timeoutMs)
       )
     ]);
   }
 
-  function resetLoginBtn() {
+  function setLoginBtn(state, label) {
     const btn = document.getElementById('loginBtn');
-    btn.disabled = false;
-    btn.textContent = 'Enter Your Name';
+    if (state === 'loading') {
+      btn.disabled = true;
+      btn.innerHTML = `<span style="font-size:10px;letter-spacing:0.1em;">${label || 'Connecting'}&nbsp;</span>`
+        + '<span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>';
+    } else {
+      btn.disabled = false;
+      btn.textContent = label || 'Enter Your Name';
+    }
+  }
+
+  function showLoginError(msg, showRetry = false) {
+    const el = document.getElementById('loginError');
+    el.innerHTML = msg + (showRetry
+      ? `&nbsp;<span onclick="doLogin()" style="color:var(--teal);cursor:pointer;text-decoration:underline;">Retry</span>`
+      : '');
+    if (!showRetry) setTimeout(() => { el.innerHTML = ''; }, 4000);
   }
 
   async function doLogin() {
-    if (!db) { showLoginError('Firebase not configured — see code comments.'); return; }
+    if (!db) { showLoginError('Firebase not configured.'); return; }
     const raw = document.getElementById('usernameInput').value;
     const username = sanitizeUsername(raw);
     if (!username) { showLoginError('Enter a valid username.'); return; }
 
-    const btn = document.getElementById('loginBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>';
+    // Clear any previous error + retry link
+    document.getElementById('loginError').innerHTML = '';
+
+    setLoginBtn('loading', 'Connecting');
+
+    // Helper: try once with given timeout
+    async function attempt(ms) {
+      const snap = await fbOnce(db.ref(`users/${username}`), ms);
+      return snap;
+    }
 
     try {
-      // Only await the read — if this resolves we know Firebase is reachable
-      const snap = await fbOnce(db.ref(`users/${username}`));
+      let snap;
+      try {
+        // First attempt — 15 s (covers Firebase cold-start)
+        snap = await attempt(15000);
+      } catch(e) {
+        if (e.message !== 'timeout') throw e;
+        // Silent auto-retry once before giving up
+        setLoginBtn('loading', 'Retrying');
+        snap = await attempt(12000);
+      }
 
-      // Fire-and-forget all writes — never await them so they can't hang login
+      // Fire-and-forget all writes — never await, can't hang login
       if (!snap.exists()) {
         db.ref(`users/${username}`).set({ username, joinedAt: Date.now() }).catch(() => {});
       }
@@ -806,13 +835,17 @@
       currentUser = username;
       localStorage.setItem(USER_KEY, username);
       enterApp();
+
     } catch(e) {
       console.error('Login error:', e);
-      const msg = e.message.includes('timeout')
-        ? 'Timed out — check Firebase rules allow .read and .write'
-        : 'Connection error — check Firebase config';
-      showLoginError(msg);
-      resetLoginBtn();
+      setLoginBtn('ready', 'Enter Your Name');
+      if (e.message === 'timeout') {
+        // Most likely cause: Firebase test-mode rules expired (they last 30 days)
+        // or a genuinely slow connection. Show a retry link so user doesn't retype.
+        showLoginError('Connection timed out.', true);
+      } else {
+        showLoginError('Connection error — check network.');
+      }
     }
   }
 
