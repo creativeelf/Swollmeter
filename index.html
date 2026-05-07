@@ -1930,21 +1930,25 @@
       return;
     }
     list.innerHTML = sorted.map(c => {
-      const color   = usernameColor(c.username || '?');
-      const initial = (c.username||'?')[0].toUpperCase();
-      const isMe    = c.username === currentUser;
+      const uname   = c.username || '?';
+      const isMe    = uname === currentUser;
       const when    = new Date(c.date);
       const timeStr = when.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
       const dateStr = when.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+      const cAvatarBg      = getAvatarBg(uname);
+      const cAvatarContent = getAvatarContent(uname);
+      const cAvatarFontSize = isAvatarEmoji(uname) ? '15px' : '10px';
+      const safeUname = uname.replace(/"/g, '&quot;');
       return `
         <div style="display:flex;gap:8px;align-items:flex-start;">
-          <div style="width:26px;height:26px;flex-shrink:0;
+          <div data-avatar-user="${safeUname}" data-avatar-base="10"
+            style="width:26px;height:26px;flex-shrink:0;
             clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
-            background:${color};display:flex;align-items:center;justify-content:center;
-            font-size:10px;font-weight:900;font-family:'Cinzel',serif;color:#010A13;">${initial}</div>
-          <div style="flex:1;background:var(--s3);padding:8px 10px;border-left:2px solid ${color};">
+            background:${cAvatarBg};display:flex;align-items:center;justify-content:center;
+            font-size:${cAvatarFontSize};font-weight:900;font-family:'Cinzel',serif;color:#010A13;">${cAvatarContent}</div>
+          <div style="flex:1;background:var(--s3);padding:8px 10px;border-left:2px solid var(--sep);">
             <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-              <span style="font-size:11px;font-weight:700;font-family:'Cinzel',serif;color:${isMe?'var(--gold)':'var(--l2)'};">${c.username||'unknown'}</span>
+              <span style="font-size:11px;font-weight:700;font-family:'Cinzel',serif;color:${isMe?'var(--gold)':'var(--l2)'};">${uname}</span>
               <span style="font-size:9px;color:var(--l3);font-family:'Cinzel',serif;">${dateStr} · ${timeStr}</span>
             </div>
             <div style="font-size:12px;color:var(--label);font-family:'Cinzel',serif;line-height:1.6;word-break:break-word;">${c.text}</div>
