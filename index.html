@@ -1606,23 +1606,24 @@
     if (v === 'log')       renderGoalsSection();
     if (v === 'friends') {
       const feed = document.getElementById('friendsFeed');
-      feed.innerHTML = `<div style="text-align:center;padding:40px 0;color:var(--l3);font-family:'Cinzel',serif;font-size:12px;letter-spacing:0.12em;">
-        <span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>
-      </div>`;
-      // Fetch sessions + goals + social data in parallel for a fresh snapshot
+      // Show spinner only if we have no data yet
+      if (allSessions.length === 0 && allGoals.length === 0) {
+        feed.innerHTML = `<div style="text-align:center;padding:40px 0;color:var(--l3);font-family:'Cinzel',serif;font-size:12px;letter-spacing:0.12em;">
+          <span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>
+        </div>`;
+      } else {
+        // Render immediately with cached data — persistent listeners keep it fresh
+        renderFriends();
+      }
+      // Refresh sessions + social data; goalsRef listener owns allGoals
       Promise.all([
         db.ref('sessions').once('value'),
-        db.ref('goals').once('value'),
         db.ref('likes').once('value'),
         db.ref('comments').once('value'),
-      ]).then(([sessSnap, goalsSnap, likesSnap, commSnap]) => {
+      ]).then(([sessSnap, likesSnap, commSnap]) => {
         const all = [];
         sessSnap.forEach(child => { const s = child.val(); if (s) all.push(s); });
         allSessions  = [...all].sort((a, b) => new Date(b.date) - new Date(a.date));
-        const gAll = [];
-        const goalsVal = goalsSnap.val() || {};
-        Object.values(goalsVal).forEach(ug => Object.values(ug).forEach(g => { if (g) gAll.push({ ...g, _type:'goal' }); }));
-        allGoals     = gAll.sort((a, b) => new Date(b.date) - new Date(a.date));
         likesData    = likesSnap.val()  || {};
         commentsData = commSnap.val()   || {};
         renderFriends();
@@ -2094,7 +2095,12 @@
     const feed = document.getElementById('friendsFeed');
     // Merge sessions + goal posts sorted newest-first
     const combined = [...allSessions, ...allGoals]
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
+      .sort((a, b) => {
+        const diff = new Date(b.date) - new Date(a.date);
+        if (diff !== 0) return diff;
+        // Tiebreak: string comparison of id (Firebase push keys sort chronologically)
+        return String(b.id) > String(a.id) ? 1 : -1;
+      });
     if (combined.length === 0) {
       feed.innerHTML = `
         <div style="text-align:center;padding:40px 0;">
