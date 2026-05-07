@@ -786,6 +786,14 @@
         </div>
         <div id="historyPanel" style="display:none; flex-direction:column; gap:8px;"></div>
       </div>
+
+      <!-- ── FITNESS GOALS ── -->
+      <div style="padding: 20px 20px 0; margin-top:4px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <span class="section-label" style="margin:0;">◆ &nbsp;Fitness Goals</span>
+        </div>
+        <div id="fitnessGoalPanel"></div>
+      </div>
     </div>
 
     <!-- ── CALENDAR VIEW ── -->
@@ -1084,8 +1092,11 @@
   let usersRef     = null;   // listener on db.ref('users')
   let likesRef     = null;   // listener on db.ref('likes')
   let commentsRef  = null;   // listener on db.ref('comments')
-  let likesData    = {};     // { sessionId: { username: true } }
-  let commentsData = {};     // { sessionId: { pushId: { username, text, date } } }
+  let goalsRef     = null;   // listener on db.ref('goals')
+  let likesData    = {};     // { postId: { username: true } }
+  let commentsData = {};     // { postId: { pushId: { username, text, date } } }
+  let allGoals     = [];     // everyone's fitness goal posts (friends feed)
+  let editCurrentWeight = '';  // current weight field in Edit Profile
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function formatDuration(minutes) {
@@ -1161,8 +1172,9 @@
     if (!currentUser) return;
     // Seed edit state from current profile
     const p = profilesData[currentUser] || {};
-    editColorIdx = (p.colorIdx != null) ? p.colorIdx : 2;
-    editEmoji    = p.emoji || '';
+    editColorIdx      = (p.colorIdx != null) ? p.colorIdx : 2;
+    editEmoji         = p.emoji || '';
+    editCurrentWeight = (p.currentWeight != null) ? String(p.currentWeight) : '';
     renderEditProfileSheet();
     const modal = document.getElementById('editProfileModal');
     modal.style.display = 'flex';
@@ -1247,6 +1259,21 @@
         </div>
       </div>
 
+      <!-- Current Weight -->
+      <div style="margin-bottom:22px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.18em;color:var(--l3);
+                    font-family:'Cinzel',serif;margin-bottom:10px;text-transform:uppercase;">
+          Current Weight (lbs)
+        </div>
+        <input id="epCurrentWeight" type="number" min="50" max="999" step="0.5"
+          placeholder="e.g. 185"
+          value="${editCurrentWeight}"
+          oninput="editCurrentWeight=this.value"
+          style="width:100%;background:var(--s3);border:1px solid var(--sep);color:var(--label);
+                 font-family:'Cinzel',serif;font-size:16px;font-weight:700;padding:12px 14px;
+                 outline:none;letter-spacing:0.04em;">
+      </div>
+
       <!-- Save button -->
       <button onclick="saveProfile()"
         style="width:100%;padding:16px;
@@ -1319,14 +1346,20 @@
     } else {
       userRef.child('emoji').remove();
     }
+    // Write current weight if provided
+    const cwVal = parseFloat(editCurrentWeight);
+    if (cwVal > 0) {
+      userRef.update({ currentWeight: cwVal });
+    } else {
+      userRef.child('currentWeight').remove();
+    }
     // Optimistic local update
     if (!profilesData[currentUser]) profilesData[currentUser] = {};
     profilesData[currentUser].colorIdx = editColorIdx;
-    if (editEmoji) {
-      profilesData[currentUser].emoji = editEmoji;
-    } else {
-      delete profilesData[currentUser].emoji;
-    }
+    if (editEmoji)  { profilesData[currentUser].emoji = editEmoji; }
+    else            { delete profilesData[currentUser].emoji; }
+    if (cwVal > 0)  { profilesData[currentUser].currentWeight = cwVal; }
+    else            { delete profilesData[currentUser].currentWeight; }
     refreshAllAvatars();
     flash('rgba(200,155,60,0.12)');
     closeEditProfile();
@@ -1445,10 +1478,11 @@
     if (likesRef)    { likesRef.off();    likesRef    = null; }
     if (commentsRef) { commentsRef.off(); commentsRef = null; }
     if (usersRef)    { usersRef.off();    usersRef    = null; }
+    if (goalsRef)    { goalsRef.off();    goalsRef    = null; }
     currentUser = null;
-    sessions = []; allSessions = [];
+    sessions = []; allSessions = []; allGoals = [];
     likesData = {}; commentsData = {}; userPlans = {};
-    profilesData = {}; editColorIdx = 2; editEmoji = '';
+    profilesData = {}; editColorIdx = 2; editEmoji = ''; editCurrentWeight = '';
     historyOpen = false;
     localStorage.removeItem(USER_KEY);
     document.getElementById('mainApp').style.display = 'none';
@@ -1496,7 +1530,7 @@
       allSessions = [...all].sort((a, b) => new Date(b.date) - new Date(a.date));
       sessions    = all.filter(s => s.username === currentUser)
                        .sort((a, b) => new Date(a.date) - new Date(b.date));
-      if (currentView === 'log') { renderHeatmap(); renderExercises(); if (historyOpen) renderHistory(); }
+      if (currentView === 'log') { renderHeatmap(); renderExercises(); if (historyOpen) renderHistory(); renderGoalsSection(); }
       if (currentView === 'calendar')  renderCalendar();
       if (currentView === 'friends')   renderFriends();
       if (currentView === 'visualize') renderVisualize();
@@ -1508,18 +1542,35 @@
       const users = snap.val() || {};
       Object.entries(users).forEach(([uname, data]) => {
         profilesData[uname] = {
-          emoji:    data.emoji    ?? null,
-          colorIdx: data.colorIdx ?? null,
+          emoji:         data.emoji         ?? null,
+          colorIdx:      data.colorIdx      ?? null,
+          currentWeight: data.currentWeight ?? null,
         };
       });
       refreshAllAvatars();
+    });
+
+    // Goals — goal posts for the friends feed
+    goalsRef = db.ref('goals');
+    goalsRef.on('value', snap => {
+      const raw = snap.val() || {};
+      const all = [];
+      Object.values(raw).forEach(userGoals => {
+        Object.values(userGoals).forEach(g => { if (g) all.push({ ...g, _type: 'goal' }); });
+      });
+      allGoals = all.sort((a, b) => new Date(b.date) - new Date(a.date));
+      if (currentView === 'friends') renderFriends();
+      if (currentView === 'log')    renderGoalsSection();
     });
 
     // Likes — targeted DOM updates, no full re-render
     likesRef = db.ref('likes');
     likesRef.on('value', snap => {
       likesData = snap.val() || {};
-      if (currentView === 'friends') allSessions.forEach(s => updateLikeButton(s.id));
+      if (currentView === 'friends') {
+        allSessions.forEach(s => updateLikeButton(s.id));
+        allGoals.forEach(g => updateLikeButton(g.id));
+      }
     });
 
     // Comments — update counts + refresh any open comment panels
@@ -1527,10 +1578,8 @@
     commentsRef.on('value', snap => {
       commentsData = snap.val() || {};
       if (currentView === 'friends') {
-        allSessions.forEach(s => {
-          updateCommentCount(s.id);
-          renderCommentsList(s.id);
-        });
+        allSessions.forEach(s => { updateCommentCount(s.id); renderCommentsList(s.id); });
+        allGoals.forEach(g => { updateCommentCount(g.id); renderCommentsList(g.id); });
       }
     });
   }
@@ -1554,20 +1603,26 @@
       document.getElementById(`tab-${t}`).classList.toggle('active', v === t));
     if (v === 'calendar')  renderCalendar();
     if (v === 'visualize') renderVisualize();
+    if (v === 'log')       renderGoalsSection();
     if (v === 'friends') {
       const feed = document.getElementById('friendsFeed');
       feed.innerHTML = `<div style="text-align:center;padding:40px 0;color:var(--l3);font-family:'Cinzel',serif;font-size:12px;letter-spacing:0.12em;">
         <span class="loading-dot"></span><span class="loading-dot"></span><span class="loading-dot"></span>
       </div>`;
-      // Fetch sessions + social data in parallel for a fresh, consistent snapshot
+      // Fetch sessions + goals + social data in parallel for a fresh snapshot
       Promise.all([
         db.ref('sessions').once('value'),
+        db.ref('goals').once('value'),
         db.ref('likes').once('value'),
         db.ref('comments').once('value'),
-      ]).then(([sessSnap, likesSnap, commSnap]) => {
+      ]).then(([sessSnap, goalsSnap, likesSnap, commSnap]) => {
         const all = [];
         sessSnap.forEach(child => { const s = child.val(); if (s) all.push(s); });
         allSessions  = [...all].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const gAll = [];
+        const goalsVal = goalsSnap.val() || {};
+        Object.values(goalsVal).forEach(ug => Object.values(ug).forEach(g => { if (g) gAll.push({ ...g, _type:'goal' }); }));
+        allGoals     = gAll.sort((a, b) => new Date(b.date) - new Date(a.date));
         likesData    = likesSnap.val()  || {};
         commentsData = commSnap.val()   || {};
         renderFriends();
@@ -1841,10 +1896,206 @@
       : recent.map(s => sessionCardHTML(s, false)).join('');
   }
 
+  // ── Fitness Goals ──────────────────────────────────────────────────────────
+  function renderGoalsSection() {
+    const panel = document.getElementById('fitnessGoalPanel');
+    if (!panel) return;
+    // Latest goal for current user
+    const myGoals = allGoals.filter(g => g.username === currentUser)
+                             .sort((a, b) => new Date(b.date) - new Date(a.date));
+    const latest = myGoals[0] || null;
+
+    let currentGoalHTML = '';
+    if (latest) {
+      const targetD = latest.targetDate
+        ? new Date(latest.targetDate + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })
+        : '—';
+      const daysLeft = latest.targetDate
+        ? Math.ceil((new Date(latest.targetDate + 'T12:00:00') - new Date()) / 86400000)
+        : null;
+      const daysLabel = daysLeft === null ? '' : daysLeft > 0 ? `${daysLeft} day${daysLeft!==1?'s':''} remaining` : daysLeft === 0 ? 'Due today!' : `${Math.abs(daysLeft)} day${Math.abs(daysLeft)!==1?'s':''} ago`;
+      const daysColor = daysLeft !== null && daysLeft <= 7 ? 'var(--red-light)' : 'var(--l3)';
+      currentGoalHTML = `
+        <div style="background:linear-gradient(135deg,rgba(11,196,227,0.06),rgba(200,155,60,0.08));
+                    border:1px solid rgba(200,155,60,0.25);padding:14px 16px;margin-bottom:16px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.18em;color:var(--gold);
+                      font-family:'Cinzel',serif;text-transform:uppercase;margin-bottom:10px;">Current Goal</div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">
+            <div>
+              <div style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.1em;margin-bottom:2px;">Target Weight</div>
+              <div style="font-size:26px;font-weight:700;font-family:'Cinzel',serif;color:var(--teal);">${latest.targetWeight} <span style="font-size:12px;color:var(--l3);">lbs</span></div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.1em;margin-bottom:2px;">Target Date</div>
+              <div style="font-size:14px;font-weight:700;font-family:'Cinzel',serif;color:var(--gold-hi);">${targetD}</div>
+              ${daysLabel ? `<div style="font-size:10px;font-family:'Cinzel',serif;color:${daysColor};margin-top:2px;">${daysLabel}</div>` : ''}
+            </div>
+          </div>
+          ${latest.note ? `<div style="margin-top:10px;font-size:11px;color:var(--l2);font-family:'Cinzel',serif;font-style:italic;">"${latest.note}"</div>` : ''}
+        </div>`;
+    }
+
+    panel.innerHTML = `
+      ${currentGoalHTML}
+      <div style="background:var(--s2);border:1px solid var(--sep);padding:16px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.18em;color:var(--l3);
+                    font-family:'Cinzel',serif;text-transform:uppercase;margin-bottom:14px;">
+          ${latest ? 'Update Goal' : 'Set a Goal'}
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:120px;">
+            <div style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.08em;margin-bottom:6px;">Target Weight (lbs)</div>
+            <input id="goalWeightInput" type="number" min="50" max="999" step="0.5"
+              placeholder="e.g. 175"
+              value="${latest ? latest.targetWeight : ''}"
+              style="width:100%;background:var(--s3);border:1px solid var(--sep);color:var(--label);
+                     font-family:'Cinzel',serif;font-size:16px;font-weight:700;padding:11px 12px;
+                     outline:none;letter-spacing:0.04em;">
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <div style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.08em;margin-bottom:6px;">Target Date</div>
+            <input id="goalDateInput" type="date"
+              value="${latest ? latest.targetDate : ''}"
+              style="width:100%;background:var(--s3);border:1px solid var(--sep);color:var(--label);
+                     font-family:'Cinzel',serif;font-size:13px;font-weight:600;padding:11px 12px;
+                     outline:none;letter-spacing:0.04em;color-scheme:dark;">
+          </div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.08em;margin-bottom:6px;">Note (optional)</div>
+          <input id="goalNoteInput" type="text" maxlength="120"
+            placeholder="e.g. Summer cut, marathon prep…"
+            style="width:100%;background:var(--s3);border:1px solid var(--sep);color:var(--label);
+                   font-family:'Cinzel',serif;font-size:12px;padding:10px 12px;outline:none;letter-spacing:0.04em;">
+        </div>
+        <button onclick="saveGoal()"
+          style="width:100%;padding:14px;background:linear-gradient(180deg,#1a3a5c,#0e2440);
+                 color:var(--gold-hi);border:1px solid var(--gold);font-family:'Cinzel',serif;
+                 font-size:11px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;
+                 cursor:pointer;touch-action:manipulation;
+                 clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px));">
+          ${latest ? '⚔ Update Goal' : '🎯 Set Goal'}
+        </button>
+      </div>`;
+  }
+
+  function saveGoal() {
+    const weightVal = parseFloat(document.getElementById('goalWeightInput')?.value || '');
+    const dateVal   = document.getElementById('goalDateInput')?.value || '';
+    const noteVal   = (document.getElementById('goalNoteInput')?.value || '').trim();
+    if (!weightVal || weightVal <= 0) {
+      alert('Please enter a target weight.');
+      return;
+    }
+    if (!dateVal) {
+      alert('Please select a target date.');
+      return;
+    }
+    const goalRef = db.ref(`goals/${currentUser}`).push();
+    const goal = {
+      id:           goalRef.key,
+      username:     currentUser,
+      targetWeight: weightVal,
+      targetDate:   dateVal,
+      note:         noteVal,
+      date:         new Date().toISOString(),
+      _type:        'goal',
+    };
+    goalRef.set(goal);
+    // Optimistic local update
+    allGoals.unshift(goal);
+    renderGoalsSection();
+    if (currentView === 'friends') renderFriends();
+    flash('rgba(11,196,227,0.1)');
+  }
+
+  // ── Goal card (friends feed) ──────────────────────────────────────────────
+  function goalCardHTML(g) {
+    const uname    = g.username || '?';
+    const isMe     = uname === currentUser;
+    const safeU    = uname.replace(/'/g, "\\'");
+    const safeUq   = uname.replace(/"/g, '&quot;');
+    const d        = new Date(g.date);
+    const dateStr  = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+    const timeStr  = d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+    const targetD  = g.targetDate ? new Date(g.targetDate + 'T12:00:00').toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' }) : '—';
+    const avatarBg      = getAvatarBg(uname);
+    const avatarContent = getAvatarContent(uname);
+    const avatarFontSize = isAvatarEmoji(uname) ? '20px' : '13px';
+
+    return `
+      <div class="history-card ${isMe ? 'mine' : ''}">
+        <!-- Header -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <div class="friend-avatar" data-avatar-user="${safeUq}" data-avatar-base="13"
+               style="background:${avatarBg};font-size:${avatarFontSize};cursor:pointer;"
+               onclick="openUserCard('${safeU}')">${avatarContent}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;font-family:'Cinzel',serif;color:${isMe?'var(--gold)':'var(--l2)'};">
+              ${uname}${isMe ? '&nbsp;<span style="font-size:9px;color:var(--l3);">(you)</span>' : ''}
+            </div>
+            <div style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.06em;">${dateStr} · ${timeStr}</div>
+          </div>
+        </div>
+        <!-- Goal body -->
+        <div style="background:linear-gradient(135deg,rgba(11,196,227,0.06),rgba(200,155,60,0.08));
+                    border:1px solid rgba(200,155,60,0.25);padding:14px 16px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.2em;color:var(--gold);
+                      font-family:'Cinzel',serif;text-transform:uppercase;margin-bottom:10px;">🎯 &nbsp;New Fitness Goal</div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.1em;margin-bottom:3px;">Target Weight</div>
+              <div style="font-size:22px;font-weight:700;font-family:'Cinzel',serif;color:var(--teal);letter-spacing:0.04em;">${g.targetWeight} <span style="font-size:12px;color:var(--l3);">lbs</span></div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.1em;margin-bottom:3px;">Target Date</div>
+              <div style="font-size:14px;font-weight:700;font-family:'Cinzel',serif;color:var(--gold-hi);letter-spacing:0.04em;padding-top:5px;">${targetD}</div>
+            </div>
+          </div>
+          ${g.note ? `<div style="margin-top:10px;font-size:12px;color:var(--l2);font-family:'Cinzel',serif;line-height:1.6;font-style:italic;">"${g.note}"</div>` : ''}
+        </div>
+        <!-- Social bar -->
+        <div style="display:flex;gap:0;margin-top:12px;border-top:1px solid rgba(120,90,40,0.3);padding-top:10px;">
+          <button id="like-btn-${g.id}" onclick="toggleLike('${g.id}')"
+            style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;
+                   padding:5px 14px 5px 0;font-family:'Cinzel',serif;font-size:12px;color:var(--l3);
+                   touch-action:manipulation;transition:color 0.12s;">
+            <span id="like-heart-${g.id}" style="font-size:15px;line-height:1;transition:transform 0.15s;">♡</span>
+            <span id="like-count-${g.id}" style="font-size:11px;font-weight:700;letter-spacing:0.08em;min-width:8px;"></span>
+          </button>
+          <button onclick="toggleComments('${g.id}')"
+            style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;
+                   padding:5px 14px 5px 4px;font-family:'Cinzel',serif;font-size:12px;color:var(--l3);
+                   touch-action:manipulation;transition:color 0.12s;">
+            <span style="font-size:13px;line-height:1;">💬</span>
+            <span id="comment-count-${g.id}" style="font-size:11px;font-weight:700;letter-spacing:0.06em;">Comment</span>
+          </button>
+        </div>
+        <div id="comments-section-${g.id}" style="margin-top:10px;">
+          <div id="comments-list-${g.id}" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+          <div style="display:flex;gap:8px;align-items:stretch;">
+            <input id="comment-input-${g.id}"
+              style="flex:1;background:var(--s3);border:1px solid var(--sep);color:var(--label);
+                     font-family:'Cinzel',serif;font-size:12px;padding:9px 12px;outline:none;letter-spacing:0.04em;"
+              placeholder="Write a comment..."
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();postComment('${g.id}');}">
+            <button onclick="postComment('${g.id}')"
+              style="background:linear-gradient(180deg,#1a3a5c,#0e2440);color:var(--gold-hi);
+                     border:1px solid var(--gold);font-family:'Cinzel',serif;font-size:9px;font-weight:700;
+                     letter-spacing:0.18em;padding:0 14px;cursor:pointer;touch-action:manipulation;
+                     white-space:nowrap;">Post</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
   // ── Friends feed ──────────────────────────────────────────────────────────
   function renderFriends() {
     const feed = document.getElementById('friendsFeed');
-    if (allSessions.length === 0) {
+    // Merge sessions + goal posts sorted newest-first
+    const combined = [...allSessions, ...allGoals]
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    if (combined.length === 0) {
       feed.innerHTML = `
         <div style="text-align:center;padding:40px 0;">
           <div style="font-size:24px;margin-bottom:12px;">⚔️</div>
@@ -1854,16 +2105,17 @@
       return;
     }
     const cards = [];
-    for (const s of allSessions) {
-      try { cards.push(sessionCardHTML(s, true)); }
-      catch(err) { console.warn('Skipping malformed session:', s.id, err); }
+    for (const item of combined) {
+      try {
+        cards.push(item._type === 'goal' ? goalCardHTML(item) : sessionCardHTML(item, true));
+      } catch(err) { console.warn('Skipping malformed post:', item.id, err); }
     }
     feed.innerHTML = cards.join('');
-    // Apply live social data now that the DOM is ready
-    allSessions.forEach(s => {
-      updateLikeButton(s.id);
-      updateCommentCount(s.id);
-      renderCommentsList(s.id);   // comments visible by default
+    // Apply live social data
+    combined.forEach(item => {
+      updateLikeButton(item.id);
+      updateCommentCount(item.id);
+      renderCommentsList(item.id);
     });
   }
 
@@ -2535,6 +2787,7 @@
             <span style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;">${totalSessions} sessions</span>
             <span style="font-size:10px;font-family:'Cinzel',serif;color:${levelAccent};">${totalUnlocked}/${totalExercises} exercises</span>
             ${maxLevel > 0 ? `<span style="font-size:10px;font-family:'Cinzel',serif;color:${levelAccent};">Peak Lvl ${ROMAN[maxLevel]}</span>` : ''}
+            ${(profilesData[username]?.currentWeight) ? `<span style="font-size:10px;font-family:'Cinzel',serif;color:var(--teal);">⚖ ${profilesData[username].currentWeight} lbs</span>` : ''}
           </div>
         </div>
       </div>`;
