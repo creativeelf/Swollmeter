@@ -667,6 +667,14 @@
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--sep); }
+
+    /* ── Wager / bet styles ── */
+    .wager-pool-bar { height:4px; background:var(--s3); border:1px solid var(--sep); margin-top:6px; }
+    .wager-pool-fill { height:100%; background:var(--gold); transition:width 0.3s; }
+    .bet-input-row { display:flex; gap:8px; margin-top:10px; align-items:center; }
+    .bet-against-btn { background:linear-gradient(180deg,#3a1a1a,#1a0a0a); color:var(--red-light); border:1px solid rgba(200,41,28,0.6); font-family:'Cinzel',serif; font-size:10px; font-weight:700; letter-spacing:0.14em; padding:0 14px; height:38px; cursor:pointer; touch-action:manipulation; white-space:nowrap; }
+    .resolve-btn-won { background:linear-gradient(180deg,#0a3a1a,#052010); color:var(--green); border:1px solid rgba(0,199,129,0.5); font-family:'Cinzel',serif; font-size:10px; font-weight:700; letter-spacing:0.14em; padding:10px 16px; cursor:pointer; flex:1; touch-action:manipulation; }
+    .resolve-btn-lost { background:linear-gradient(180deg,#3a0a0a,#200505); color:var(--red-light); border:1px solid rgba(200,41,28,0.5); font-family:'Cinzel',serif; font-size:10px; font-weight:700; letter-spacing:0.14em; padding:10px 16px; cursor:pointer; flex:1; touch-action:manipulation; }
   </style>
 </head>
 <body>
@@ -717,6 +725,7 @@
              style="cursor:pointer;" title="Edit profile"
              onclick="openEditProfile()"></div>
         <span class="topbar-name" id="topBarName"></span>
+        <span id="topBarBalance" style="font-size:10px;font-weight:700;font-family:'Cinzel',serif;color:var(--green);letter-spacing:0.06em;margin-left:4px;"></span>
       </div>
       <button class="topbar-logout" onclick="doLogout()">Logout</button>
     </div>
@@ -1093,10 +1102,22 @@
   let likesRef     = null;   // listener on db.ref('likes')
   let commentsRef  = null;   // listener on db.ref('comments')
   let goalsRef     = null;   // listener on db.ref('goals')
+  let betsRef      = null;   // listener on db.ref('bets')
   let likesData    = {};     // { postId: { username: true } }
   let commentsData = {};     // { postId: { pushId: { username, text, date } } }
   let allGoals     = [];     // everyone's fitness goal posts (friends feed)
+  let betsData     = {};     // { goalId: { username: { amount, username, goalOwner, date } } }
   let editCurrentWeight = '';  // current weight field in Edit Profile
+
+  // ── Money helpers ─────────────────────────────────────────────────────────
+  function getBalance(u)   { return profilesData[u]?.balance   ?? 200; }
+  function getCommitted(u) { return profilesData[u]?.committed ?? 0;   }
+  function getAvailable(u) { return getBalance(u) - getCommitted(u);   }
+  function updateBalanceDisplay() {
+    const el = document.getElementById('topBarBalance');
+    if (!el || !currentUser) return;
+    el.textContent = '💰 $' + getAvailable(currentUser).toFixed(0);
+  }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function formatDuration(minutes) {
@@ -1272,6 +1293,26 @@
           style="width:100%;background:var(--s3);border:1px solid var(--sep);color:var(--label);
                  font-family:'Cinzel',serif;font-size:16px;font-weight:700;padding:12px 14px;
                  outline:none;letter-spacing:0.04em;">
+      </div>
+
+      <!-- Balance info -->
+      <div style="margin-bottom:22px;padding:14px;background:var(--s3);border:1px solid var(--sep);">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.18em;color:var(--l3);
+                    font-family:'Cinzel',serif;margin-bottom:10px;text-transform:uppercase;">Wallet</div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:9px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.1em;margin-bottom:2px;">Balance</div>
+            <div style="font-size:18px;font-weight:700;font-family:'Cinzel',serif;color:var(--gold);">$${getBalance(currentUser).toFixed(0)}</div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.1em;margin-bottom:2px;">Committed</div>
+            <div style="font-size:18px;font-weight:700;font-family:'Cinzel',serif;color:var(--red-light);">$${getCommitted(currentUser).toFixed(0)}</div>
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.1em;margin-bottom:2px;">Available</div>
+            <div style="font-size:18px;font-weight:700;font-family:'Cinzel',serif;color:var(--green);">$${getAvailable(currentUser).toFixed(0)}</div>
+          </div>
+        </div>
       </div>
 
       <!-- Save button -->
@@ -1479,9 +1520,10 @@
     if (commentsRef) { commentsRef.off(); commentsRef = null; }
     if (usersRef)    { usersRef.off();    usersRef    = null; }
     if (goalsRef)    { goalsRef.off();    goalsRef    = null; }
+    if (betsRef)     { betsRef.off();     betsRef     = null; }
     currentUser = null;
     sessions = []; allSessions = []; allGoals = [];
-    likesData = {}; commentsData = {}; userPlans = {};
+    likesData = {}; commentsData = {}; userPlans = {}; betsData = {};
     profilesData = {}; editColorIdx = 2; editEmoji = ''; editCurrentWeight = '';
     historyOpen = false;
     localStorage.removeItem(USER_KEY);
@@ -1507,9 +1549,16 @@
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('mainApp').style.display = '';
 
-    sessions = []; allSessions = []; userPlans = {};
+    sessions = []; allSessions = []; userPlans = {}; betsData = {};
     renderHeatmap(); renderExercises();
     loadUserPlans();
+
+    // Initialize balance for new users (fire-and-forget read then conditional write)
+    db.ref('users/' + currentUser + '/balance').once('value').then(snap => {
+      if (snap.val() === null) {
+        db.ref('users/' + currentUser).update({ balance: 200, committed: 0 }).catch(() => {});
+      }
+    }).catch(() => {});
 
     startMasterListener();
     setView('log');
@@ -1521,6 +1570,7 @@
     if (usersRef)    usersRef.off();
     if (likesRef)    likesRef.off();
     if (commentsRef) commentsRef.off();
+    if (betsRef)     betsRef.off();
 
     // Sessions
     masterRef = db.ref('sessions');
@@ -1545,9 +1595,12 @@
           emoji:         data.emoji         ?? null,
           colorIdx:      data.colorIdx      ?? null,
           currentWeight: data.currentWeight ?? null,
+          balance:       data.balance       ?? 200,
+          committed:     data.committed     ?? 0,
         };
       });
       refreshAllAvatars();
+      updateBalanceDisplay();
     });
 
     // Goals — goal posts for the friends feed
@@ -1559,6 +1612,14 @@
         Object.values(userGoals).forEach(g => { if (g) all.push({ ...g, _type: 'goal' }); });
       });
       allGoals = all.sort((a, b) => new Date(b.date) - new Date(a.date));
+      if (currentView === 'friends') renderFriends();
+      if (currentView === 'log')    renderGoalsSection();
+    });
+
+    // Bets — track bets on goals
+    betsRef = db.ref('bets');
+    betsRef.on('value', snap => {
+      betsData = snap.val() || {};
       if (currentView === 'friends') renderFriends();
       if (currentView === 'log')    renderGoalsSection();
     });
@@ -1901,10 +1962,12 @@
   function renderGoalsSection() {
     const panel = document.getElementById('fitnessGoalPanel');
     if (!panel) return;
-    // Latest goal for current user
+    // Latest active goal for current user (prefer active ones)
     const myGoals = allGoals.filter(g => g.username === currentUser)
                              .sort((a, b) => new Date(b.date) - new Date(a.date));
-    const latest = myGoals[0] || null;
+    const latest = myGoals.find(g => (g.status || 'active') === 'active') || myGoals[0] || null;
+
+    const todayStr = new Date().toISOString().slice(0, 10);
 
     let currentGoalHTML = '';
     if (latest) {
@@ -1916,11 +1979,54 @@
         : null;
       const daysLabel = daysLeft === null ? '' : daysLeft > 0 ? `${daysLeft} day${daysLeft!==1?'s':''} remaining` : daysLeft === 0 ? 'Due today!' : `${Math.abs(daysLeft)} day${Math.abs(daysLeft)!==1?'s':''} ago`;
       const daysColor = daysLeft !== null && daysLeft <= 7 ? 'var(--red-light)' : 'var(--l3)';
+      const gStatus = latest.status || 'active';
+      const wager = latest.wager || 0;
+      const betsTotal = latest.betsTotal || 0;
+      const goalBets = betsData[latest.id] || {};
+      const isPastDue = latest.targetDate && latest.targetDate <= todayStr;
+      const isActive = gStatus === 'active';
+
+      let wagerHTML = '';
+      if (wager > 0) {
+        const poolPct = Math.min(100, Math.round(betsTotal / wager * 100));
+        wagerHTML = `
+          <div style="margin-top:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:10px;color:var(--gold);font-family:'Cinzel',serif;font-weight:700;">Wager: $${wager}</span>
+              <span style="font-size:9px;color:var(--l3);font-family:'Cinzel',serif;">Pool: $${betsTotal} of $${wager} covered</span>
+            </div>
+            <div class="wager-pool-bar"><div class="wager-pool-fill" style="width:${poolPct}%"></div></div>
+          </div>`;
+      }
+
+      let resolveBannerHTML = '';
+      if (isActive && isPastDue) {
+        const bettersList = Object.values(goalBets);
+        resolveBannerHTML = `
+          <div style="margin-top:12px;padding:12px;background:rgba(200,155,60,0.08);border:1px solid rgba(200,155,60,0.3);">
+            <div style="font-size:10px;font-weight:700;color:var(--gold);font-family:'Cinzel',serif;letter-spacing:0.16em;margin-bottom:10px;">
+              ⚔ RESOLVE GOAL
+            </div>
+            <div style="font-size:11px;color:var(--l2);font-family:'Cinzel',serif;margin-bottom:10px;">
+              Did you reach your target of ${latest.targetWeight} lbs?
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="resolve-btn-won" onclick="resolveGoal('${latest.id}','${latest.username}','won')">✓ Achieved</button>
+              <button class="resolve-btn-lost" onclick="resolveGoal('${latest.id}','${latest.username}','lost')">✗ Missed</button>
+            </div>
+          </div>`;
+      }
+
+      const statusBadge = gStatus !== 'active'
+        ? `<span style="font-size:9px;font-weight:700;font-family:'Cinzel',serif;letter-spacing:0.12em;padding:2px 7px;
+             background:${gStatus==='won'?'var(--green)':gStatus==='lost'?'var(--red)':'var(--l3)'};color:#010A13;margin-left:8px;">${gStatus.toUpperCase()}</span>`
+        : '';
+
       currentGoalHTML = `
         <div style="background:linear-gradient(135deg,rgba(11,196,227,0.06),rgba(200,155,60,0.08));
                     border:1px solid rgba(200,155,60,0.25);padding:14px 16px;margin-bottom:16px;">
           <div style="font-size:10px;font-weight:700;letter-spacing:0.18em;color:var(--gold);
-                      font-family:'Cinzel',serif;text-transform:uppercase;margin-bottom:10px;">Current Goal</div>
+                      font-family:'Cinzel',serif;text-transform:uppercase;margin-bottom:10px;">Current Goal ${statusBadge}</div>
           <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">
             <div>
               <div style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.1em;margin-bottom:2px;">Target Weight</div>
@@ -1933,8 +2039,12 @@
             </div>
           </div>
           ${latest.note ? `<div style="margin-top:10px;font-size:11px;color:var(--l2);font-family:'Cinzel',serif;font-style:italic;">"${latest.note}"</div>` : ''}
+          ${wagerHTML}
+          ${resolveBannerHTML}
         </div>`;
     }
+
+    const available = getAvailable(currentUser);
 
     panel.innerHTML = `
       ${currentGoalHTML}
@@ -1962,12 +2072,20 @@
                      outline:none;letter-spacing:0.04em;color-scheme:dark;">
           </div>
         </div>
-        <div style="margin-bottom:14px;">
+        <div style="margin-bottom:12px;">
           <div style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.08em;margin-bottom:6px;">Note (optional)</div>
           <input id="goalNoteInput" type="text" maxlength="120"
             placeholder="e.g. Summer cut, marathon prep…"
             style="width:100%;background:var(--s3);border:1px solid var(--sep);color:var(--label);
                    font-family:'Cinzel',serif;font-size:12px;padding:10px 12px;outline:none;letter-spacing:0.04em;">
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.08em;margin-bottom:6px;">Wager $ (optional — max available: $${available.toFixed(0)})</div>
+          <input id="goalWagerInput" type="number" min="0" max="${available}" step="1"
+            placeholder="0"
+            style="width:100%;background:var(--s3);border:1px solid var(--sep);color:var(--label);
+                   font-family:'Cinzel',serif;font-size:16px;font-weight:700;padding:11px 12px;
+                   outline:none;letter-spacing:0.04em;">
         </div>
         <button onclick="saveGoal()"
           style="width:100%;padding:14px;background:linear-gradient(180deg,#1a3a5c,#0e2440);
@@ -1984,6 +2102,9 @@
     const weightVal = parseFloat(document.getElementById('goalWeightInput')?.value || '');
     const dateVal   = document.getElementById('goalDateInput')?.value || '';
     const noteVal   = (document.getElementById('goalNoteInput')?.value || '').trim();
+    const wagerRaw  = parseFloat(document.getElementById('goalWagerInput')?.value || '') || 0;
+    const available = getAvailable(currentUser);
+    const wagerVal  = Math.max(0, Math.min(wagerRaw, available));
     if (!weightVal || weightVal <= 0) {
       alert('Please enter a target weight.');
       return;
@@ -2001,13 +2122,137 @@
       note:         noteVal,
       date:         new Date().toISOString(),
       _type:        'goal',
+      wager:        wagerVal,
+      betsTotal:    0,
+      status:       'active',
     };
-    goalRef.set(goal);
+    goalRef.set(goal).catch(() => {});
+    // Update committed if wagering
+    if (wagerVal > 0) {
+      const newCommitted = getCommitted(currentUser) + wagerVal;
+      if (!profilesData[currentUser]) profilesData[currentUser] = { balance: 200, committed: 0 };
+      profilesData[currentUser].committed = newCommitted;
+      db.ref('users/' + currentUser).update({ committed: newCommitted }).catch(() => {});
+      updateBalanceDisplay();
+    }
     // Optimistic local update
     allGoals.unshift(goal);
     renderGoalsSection();
     if (currentView === 'friends') renderFriends();
     flash('rgba(11,196,227,0.1)');
+  }
+
+  // ── Bet against a goal ────────────────────────────────────────────────────
+  function placeBet(goalId, goalOwner) {
+    const inp = document.getElementById('betInput-' + goalId);
+    if (!inp) return;
+    const amount = parseFloat(inp.value) || 0;
+    const goal = allGoals.find(g => g.id === goalId);
+    if (!goal) return;
+    if ((goal.status || 'active') !== 'active') return;
+    if (goalOwner === currentUser) return;
+    const goalBets = betsData[goalId] || {};
+    if (goalBets[currentUser]) return; // already bet
+    const available = getAvailable(currentUser);
+    const remaining = (goal.wager || 0) - (goal.betsTotal || 0);
+    if (amount <= 0 || amount > Math.min(available, remaining)) {
+      alert('Invalid bet amount. Max: $' + Math.min(available, remaining).toFixed(0));
+      return;
+    }
+    const bet = { amount, username: currentUser, goalOwner, date: new Date().toISOString() };
+    // Optimistic update
+    if (!betsData[goalId]) betsData[goalId] = {};
+    betsData[goalId][currentUser] = bet;
+    const newCommitted = getCommitted(currentUser) + amount;
+    if (!profilesData[currentUser]) profilesData[currentUser] = { balance: 200, committed: 0 };
+    profilesData[currentUser].committed = newCommitted;
+    const newBetsTotal = (goal.betsTotal || 0) + amount;
+    goal.betsTotal = newBetsTotal;
+    updateBalanceDisplay();
+    // Firebase writes (fire-and-forget)
+    db.ref('bets/' + goalId + '/' + currentUser).set(bet).catch(() => {});
+    db.ref('users/' + currentUser).update({ committed: newCommitted }).catch(() => {});
+    db.ref('goals/' + goalOwner + '/' + goalId + '/betsTotal').set(newBetsTotal).catch(() => {});
+    renderFriends();
+  }
+
+  // ── Cancel a goal ─────────────────────────────────────────────────────────
+  function cancelGoal(goalId, goalOwner) {
+    const goal = allGoals.find(g => g.id === goalId);
+    if (!goal) return;
+    if ((goal.betsTotal || 0) > 0) { alert('Cannot cancel a goal with active bets.'); return; }
+    if ((goal.status || 'active') !== 'active') return;
+    const wager = goal.wager || 0;
+    // Release committed
+    if (wager > 0) {
+      const newCommitted = Math.max(0, getCommitted(currentUser) - wager);
+      if (!profilesData[currentUser]) profilesData[currentUser] = { balance: 200, committed: 0 };
+      profilesData[currentUser].committed = newCommitted;
+      db.ref('users/' + currentUser).update({ committed: newCommitted }).catch(() => {});
+      updateBalanceDisplay();
+    }
+    // Remove goal
+    allGoals = allGoals.filter(g => g.id !== goalId);
+    db.ref('goals/' + goalOwner + '/' + goalId).remove().catch(() => {});
+    renderGoalsSection();
+    if (currentView === 'friends') renderFriends();
+    flash('rgba(200,41,28,0.08)');
+  }
+
+  // ── Resolve a goal (won/lost) ─────────────────────────────────────────────
+  function resolveGoal(goalId, goalOwner, outcome) {
+    if (goalOwner !== currentUser) return;
+    const goal = allGoals.find(g => g.id === goalId);
+    if (!goal) return;
+    if ((goal.status || 'active') !== 'active') return;
+    const wager = goal.wager || 0;
+    const goalBets = betsData[goalId] || {};
+    const betters = Object.values(goalBets);
+    const betSum = betters.reduce((s, b) => s + (b.amount || 0), 0);
+
+    // Update goal status optimistically
+    goal.status = outcome;
+
+    // Owner balance changes
+    let ownerBalanceDelta = 0;
+    if (outcome === 'won') {
+      ownerBalanceDelta = betSum; // owner wins all bet amounts
+    } else {
+      ownerBalanceDelta = -betSum; // owner loses the bet amounts (but doesn't lose wager to anyone; it's just released)
+    }
+    const ownerNewBalance = getBalance(currentUser) + ownerBalanceDelta;
+    const ownerNewCommitted = Math.max(0, getCommitted(currentUser) - wager);
+    if (!profilesData[currentUser]) profilesData[currentUser] = { balance: 200, committed: 0 };
+    profilesData[currentUser].balance   = ownerNewBalance;
+    profilesData[currentUser].committed = ownerNewCommitted;
+    db.ref('users/' + currentUser).update({ balance: ownerNewBalance, committed: ownerNewCommitted }).catch(() => {});
+
+    // Better balance changes
+    betters.forEach(bet => {
+      const u = bet.username;
+      if (!profilesData[u]) profilesData[u] = { balance: 200, committed: 0 };
+      const betAmount = bet.amount || 0;
+      let betterNewBalance;
+      if (outcome === 'won') {
+        // Owner won — betters lose their bet amounts
+        betterNewBalance = getBalance(u) - betAmount;
+      } else {
+        // Owner lost — betters get their bet amounts back as winnings
+        betterNewBalance = getBalance(u) + betAmount;
+      }
+      const betterNewCommitted = Math.max(0, (profilesData[u].committed ?? 0) - betAmount);
+      profilesData[u].balance   = betterNewBalance;
+      profilesData[u].committed = betterNewCommitted;
+      db.ref('users/' + u).update({ balance: betterNewBalance, committed: betterNewCommitted }).catch(() => {});
+    });
+
+    // Write goal status
+    db.ref('goals/' + goalOwner + '/' + goalId + '/status').set(outcome).catch(() => {});
+
+    updateBalanceDisplay();
+    renderGoalsSection();
+    if (currentView === 'friends') renderFriends();
+    flash(outcome === 'won' ? 'rgba(0,199,129,0.1)' : 'rgba(200,41,28,0.1)');
   }
 
   // ── Goal card (friends feed) ──────────────────────────────────────────────
@@ -2023,6 +2268,90 @@
     const avatarBg      = getAvatarBg(uname);
     const avatarContent = getAvatarContent(uname);
     const avatarFontSize = isAvatarEmoji(uname) ? '20px' : '13px';
+
+    const wager     = g.wager || 0;
+    const betsTotal = g.betsTotal || 0;
+    const gStatus   = g.status || 'active';
+    const isActive  = gStatus === 'active';
+    const todayStr  = new Date().toISOString().slice(0, 10);
+    const isPastDue = g.targetDate && g.targetDate <= todayStr;
+    const goalBets  = betsData[g.id] || {};
+    const myBet     = goalBets[currentUser];
+    const betters   = Object.values(goalBets);
+
+    // Wager section HTML
+    let wagerSectionHTML = '';
+    if (wager > 0) {
+      const poolPct = Math.min(100, Math.round(betsTotal / wager * 100));
+      const poolRemaining = wager - betsTotal;
+      const myAvailable = getAvailable(currentUser);
+      const maxBet = Math.min(myAvailable, poolRemaining);
+
+      let betActionHTML = '';
+      if (isActive) {
+        if (!isMe && !myBet && poolRemaining > 0) {
+          betActionHTML = `
+            <div class="bet-input-row">
+              <input id="betInput-${g.id}" type="number" min="1" max="${maxBet}" step="1"
+                placeholder="$ amount"
+                style="flex:1;background:var(--s3);border:1px solid rgba(200,41,28,0.4);color:var(--label);
+                       font-family:'Cinzel',serif;font-size:14px;font-weight:700;padding:9px 12px;
+                       outline:none;letter-spacing:0.04em;height:38px;">
+              <button class="bet-against-btn" onclick="placeBet('${g.id}','${safeU}')">Bet Against</button>
+            </div>
+            <div style="font-size:9px;color:var(--l3);font-family:'Cinzel',serif;margin-top:4px;">Max bet: $${maxBet.toFixed(0)} · Available: $${myAvailable.toFixed(0)}</div>`;
+        } else if (!isMe && myBet) {
+          betActionHTML = `<div style="margin-top:8px;font-size:11px;color:var(--gold);font-family:'Cinzel',serif;font-weight:700;">Your bet: $${myBet.amount}</div>`;
+        } else if (isMe && betsTotal === 0) {
+          betActionHTML = `
+            <div style="margin-top:8px;">
+              <button onclick="cancelGoal('${g.id}','${safeU}')"
+                style="font-family:'Cinzel',serif;font-size:9px;font-weight:700;color:var(--red-light);
+                       background:rgba(200,41,28,0.08);border:1px solid rgba(200,41,28,0.35);
+                       padding:6px 14px;cursor:pointer;letter-spacing:0.12em;">Cancel Goal</button>
+            </div>`;
+        }
+      }
+
+      // Betters list
+      const bettersList = betters.length > 0
+        ? `<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;">${
+            betters.map(b => `<div style="font-size:10px;color:var(--l2);font-family:'Cinzel',serif;">
+              <span style="color:var(--l3);">${b.username}:</span> $${b.amount} against
+            </div>`).join('')
+          }</div>`
+        : '';
+
+      wagerSectionHTML = `
+        <div style="margin-top:10px;padding:10px 12px;background:rgba(200,155,60,0.06);border:1px solid rgba(200,155,60,0.2);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:10px;font-weight:700;color:var(--gold);font-family:'Cinzel',serif;">💰 Wager: $${wager}</span>
+            <span style="font-size:9px;color:var(--l3);font-family:'Cinzel',serif;">$${betsTotal} of $${wager} covered</span>
+          </div>
+          <div class="wager-pool-bar"><div class="wager-pool-fill" style="width:${poolPct}%"></div></div>
+          ${bettersList}
+          ${betActionHTML}
+        </div>`;
+    }
+
+    // Resolution buttons (owner only, past due, active)
+    let resolveHTML = '';
+    if (isMe && isActive && isPastDue) {
+      resolveHTML = `
+        <div style="margin-top:10px;padding:10px;background:rgba(200,155,60,0.06);border:1px solid rgba(200,155,60,0.25);">
+          <div style="font-size:9px;font-weight:700;color:var(--gold);font-family:'Cinzel',serif;letter-spacing:0.16em;margin-bottom:8px;">⚔ RESOLVE GOAL — Did you reach ${g.targetWeight} lbs?</div>
+          <div style="display:flex;gap:8px;">
+            <button class="resolve-btn-won" onclick="resolveGoal('${g.id}','${safeU}','won')">✓ Achieved</button>
+            <button class="resolve-btn-lost" onclick="resolveGoal('${g.id}','${safeU}','lost')">✗ Missed</button>
+          </div>
+        </div>`;
+    }
+
+    // Status badge
+    const statusBadge = gStatus !== 'active'
+      ? `<span style="font-size:8px;font-weight:700;font-family:'Cinzel',serif;letter-spacing:0.1em;padding:2px 6px;
+           background:${gStatus==='won'?'var(--green)':gStatus==='lost'?'var(--red)':'var(--l3)'};color:#010A13;margin-left:6px;">${gStatus.toUpperCase()}</span>`
+      : '';
 
     return `
       <div class="history-card ${isMe ? 'mine' : ''}">
@@ -2042,7 +2371,7 @@
         <div style="background:linear-gradient(135deg,rgba(11,196,227,0.06),rgba(200,155,60,0.08));
                     border:1px solid rgba(200,155,60,0.25);padding:14px 16px;">
           <div style="font-size:10px;font-weight:700;letter-spacing:0.2em;color:var(--gold);
-                      font-family:'Cinzel',serif;text-transform:uppercase;margin-bottom:10px;">🎯 &nbsp;New Fitness Goal</div>
+                      font-family:'Cinzel',serif;text-transform:uppercase;margin-bottom:10px;">🎯 &nbsp;New Fitness Goal ${statusBadge}</div>
           <div style="display:flex;gap:20px;flex-wrap:wrap;">
             <div>
               <div style="font-size:10px;color:var(--l3);font-family:'Cinzel',serif;letter-spacing:0.1em;margin-bottom:3px;">Target Weight</div>
@@ -2054,6 +2383,8 @@
             </div>
           </div>
           ${g.note ? `<div style="margin-top:10px;font-size:12px;color:var(--l2);font-family:'Cinzel',serif;line-height:1.6;font-style:italic;">"${g.note}"</div>` : ''}
+          ${wagerSectionHTML}
+          ${resolveHTML}
         </div>
         <!-- Social bar -->
         <div style="display:flex;gap:0;margin-top:12px;border-top:1px solid rgba(120,90,40,0.3);padding-top:10px;">
